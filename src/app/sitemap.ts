@@ -16,7 +16,7 @@ function lastMod(iso: string | null | undefined): Date | undefined {
 function absUrl(site: string, path: string): string {
   const base = site.replace(/\/+$/, "");
   const p = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${p}`.replace(/\s+/g, "");
+  return `${base}${p}`;
 }
 
 type SitemapArticle = {
@@ -35,7 +35,7 @@ function topicSlugOf(row: SitemapArticle): string | null {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const site = getSiteUrl();
+  const site = getSiteUrl().replace(/\/+$/, "");
   const nowIso = new Date().toISOString();
   const supabase = createPublicClient();
 
@@ -48,21 +48,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .order("published_at", { ascending: false });
 
   const published = (
-    isMissingSchemaError(articlesError) ? [] : ((articles ?? []) as SitemapArticle[])
+    isMissingSchemaError(articlesError)
+      ? []
+      : ((articles ?? []) as SitemapArticle[])
   ).filter((a) => {
     const slug = topicSlugOf(a);
-    return Boolean(slug && HR_TOPIC_SLUGS.has(slug));
+    return Boolean(slug && HR_TOPIC_SLUGS.has(slug) && a.slug);
   });
 
   // Public topic URLs = navbar desks only (ignore legacy DB topics).
   const topicSlugs = getNavTopics().map((t) => t.slug);
-
   const newest = published[0]?.updated_at ?? published[0]?.published_at;
+  const siteLastMod = lastMod(newest) ?? new Date();
 
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: absUrl(site, "/"),
-      lastModified: lastMod(newest) ?? new Date(),
+      lastModified: siteLastMod,
       changeFrequency: "hourly",
       priority: 1,
     },
@@ -118,8 +120,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const topicPages: MetadataRoute.Sitemap = topicSlugs.map((slug) => ({
     url: absUrl(site, `/topic/${slug}`),
-    lastModified: lastMod(newest) ?? new Date(),
-    changeFrequency: "daily",
+    lastModified: siteLastMod,
+    changeFrequency: "daily" as const,
     priority: 0.8,
   }));
 
@@ -134,8 +136,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return {
       url: absUrl(site, `/article/${a.slug}`),
-      lastModified: lastMod(a.updated_at) ?? publishedAt,
-      changeFrequency: fresh ? "daily" : "weekly",
+      lastModified: lastMod(a.updated_at) ?? publishedAt ?? siteLastMod,
+      changeFrequency: (fresh ? "daily" : "weekly") as "daily" | "weekly",
       priority: fresh ? 0.9 : 0.7,
       ...(images ? { images } : {}),
     };

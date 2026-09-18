@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site";
 
+/**
+ * Served at /robots.txt
+ * Keep private admin/API/unsubscribe out of the public crawl.
+ */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl().replace(/\/+$/, "");
 
@@ -17,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
           "/unsubscribe/",
         ],
       },
+      // Allow major AI crawlers on public editorial content; keep admin/API closed.
       {
         userAgent: "GPTBot",
         allow: "/",
@@ -24,6 +29,21 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: "Google-Extended",
+        allow: "/",
+        disallow: ["/admin", "/admin/", "/api/"],
+      },
+      {
+        userAgent: "ChatGPT-User",
+        allow: "/",
+        disallow: ["/admin", "/admin/", "/api/"],
+      },
+      {
+        userAgent: "anthropic-ai",
+        allow: "/",
+        disallow: ["/admin", "/admin/", "/api/"],
+      },
+      {
+        userAgent: "ClaudeBot",
         allow: "/",
         disallow: ["/admin", "/admin/", "/api/"],
       },
