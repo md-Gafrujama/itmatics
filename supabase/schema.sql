@@ -1,0 +1,226 @@
+-- ITmatics News CMS schema.
+-- Run this whole file once in the Supabase SQL Editor (Project > SQL Editor > New query).
+-- Safe to re-run: every statement is guarded with IF NOT EXISTS / OR REPLACE.
+
+create extension if not exists "pgcrypto";
+
+-- ---------------------------------------------------------------------------
+-- topics
+-- ---------------------------------------------------------------------------
+create table if not exists public.topics (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  name text not null,
+  description text,
+  created_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
+-- articles
+-- ---------------------------------------------------------------------------
+create table if not exists public.articles (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  title text not null,
+  dek text not null,
+  body_json jsonb not null,
+  topic_id uuid references public.topics (id) on delete set null,
+  status text not null default 'draft' check (status in ('draft', 'published')),
+  cover_image_url text,
+  cover_image_alt text,
+  cover_image_credit text,
+  cover_image_credit_url text,
+  meta_title text,
+  meta_description text,
+  read_time_minutes integer,
+  author_name text not null default 'The ITmatics News Desk',
+  source text not null default 'manual' check (source in ('ai', 'manual')),
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists articles_status_published_at_idx
+  on public.articles (status, published_at desc);
+create index if not exists articles_topic_id_idx on public.articles (topic_id);
+
+-- ---------------------------------------------------------------------------
+-- generation_log - observability for the AI auto-publish cron
+-- ---------------------------------------------------------------------------
+create table if not exists public.generation_log (
+  id uuid primary key default gen_random_uuid(),
+  run_at timestamptz not null default now(),
+  topic_searched text,
+  status text not null check (status in ('success', 'failed')),
+  article_id uuid references public.articles (id) on delete set null,
+  error_message text
+);
+
+-- ---------------------------------------------------------------------------
+-- admin_users - explicit allowlist of who may use /admin
+-- After creating your login user in Authentication > Users, insert their
+-- auth.users id here, e.g.:
+--   insert into public.admin_users (user_id) values ('00000000-0000-0000-0000-000000000000');
+-- ---------------------------------------------------------------------------
+create table if not exists public.admin_users (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
+-- updated_at trigger for articles
+-- ---------------------------------------------------------------------------
+create or replace function public.set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists articles_set_updated_at on public.articles;
+create trigger articles_set_updated_at
+  before update on public.articles
+  for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Row Level Security
+-- ---------------------------------------------------------------------------
+alter table public.topics enable row level security;
+alter table public.articles enable row level security;
+alter table public.generation_log enable row level security;
+alter table public.admin_users enable row level security;
+
+create or replace function public.is_admin()
+returns boolean as $$
+  select exists (
+    select 1 from public.admin_users where user_id = auth.uid()
+  );
+$$ language sql stable security definer set search_path = public;
+
+-- topics: public read, admin write
+drop policy if exists "topics_public_select" on public.topics;
+create policy "topics_public_select" on public.topics
+  for select using (true);
+
+drop policy if exists "topics_admin_write" on public.topics;
+create policy "topics_admin_write" on public.topics
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- articles: public read of published-only, admin full access
+drop policy if exists "articles_public_select" on public.articles;
+create policy "articles_public_select" on public.articles
+  for select using (status = 'published' and published_at <= now());
+
+drop policy if exists "articles_admin_all" on public.articles;
+create policy "articles_admin_all" on public.articles
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- generation_log: admin only, no public policy
+drop policy if exists "generation_log_admin_all" on public.generation_log;
+create policy "generation_log_admin_all" on public.generation_log
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- admin_users: admin only, no public policy
+drop policy if exists "admin_users_admin_all" on public.admin_users;
+create policy "admin_users_admin_all" on public.admin_users
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---------------------------------------------------------------------------
+-- subscribers
+-- ---------------------------------------------------------------------------
+create table if not exists public.subscribers (
+  id uuid primary key default gen_random_uuid(),
+  email text not null,
+  unsubscribed_at timestamptz,
+  unsubscribe_reason text,
+  unsubscribe_token uuid not null unique default gen_random_uuid(),
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists subscribers_email_lower_idx
+  on public.subscribers (lower(email));
+
+create table if not exists public.subscriber_interests (
+  id uuid primary key default gen_random_uuid(),
+  subscriber_id uuid not null references public.subscribers (id) on delete cascade,
+  article_id uuid references public.articles (id) on delete set null,
+  article_slug text,
+  article_title text,
+  topic_id uuid references public.topics (id) on delete set null,
+  topic_slug text,
+  topic_name text,
+  source text not null default 'site',
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists subscriber_interests_article_idx
+  on public.subscriber_interests (subscriber_id, article_id)
+  where article_id is not null;
+
+create unique index if not exists subscriber_interests_topic_idx
+  on public.subscriber_interests (subscriber_id, topic_id)
+  where article_id is null and topic_id is not null;
+
+create unique index if not exists subscriber_interests_general_idx
+  on public.subscriber_interests (subscriber_id)
+  where article_id is null and topic_id is null;
+
+create index if not exists subscriber_interests_topic_id_idx
+  on public.subscriber_interests (topic_id);
+
+create table if not exists public.subscriber_notifications (
+  id uuid primary key default gen_random_uuid(),
+  subscriber_id uuid not null references public.subscribers (id) on delete cascade,
+  article_id uuid not null references public.articles (id) on delete cascade,
+  sent_at timestamptz not null default now(),
+  unique (subscriber_id, article_id)
+);
+
+alter table public.subscribers enable row level security;
+alter table public.subscriber_interests enable row level security;
+alter table public.subscriber_notifications enable row level security;
+
+drop policy if exists "subscribers_admin_all" on public.subscribers;
+create policy "subscribers_admin_all" on public.subscribers
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "subscriber_interests_admin_all" on public.subscriber_interests;
+create policy "subscriber_interests_admin_all" on public.subscriber_interests
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "subscriber_notifications_admin_all" on public.subscriber_notifications;
+create policy "subscriber_notifications_admin_all" on public.subscriber_notifications
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---------------------------------------------------------------------------
+-- Seed IT topic categories (no-op if already present)
+-- ---------------------------------------------------------------------------
+insert into public.topics (slug, name, description) values
+  ('artificial-intelligence', 'Artificial Intelligence', 'From pilots to production: adoption, governance, and the operating models that make AI stick in the enterprise.'),
+  ('cloud', 'Cloud', 'Hybrid strategy, sovereign regions, and the economics of running modern workloads.'),
+  ('security', 'Security', 'Identity, resilience, and the threat landscape facing enterprise security leaders.'),
+  ('data-analytics', 'Data & Analytics', 'Platforms, governance, and turning data investment into decisions people trust.'),
+  ('it-leadership', 'IT Leadership', 'Strategy, operating models, and the decisions CIOs and IT directors face every quarter.'),
+  ('digital-transformation', 'Digital Transformation', 'How enterprises actually change: sequencing, product operating models, and what sticks.'),
+  ('infrastructure', 'Infrastructure', 'Platforms, networking, and the boring systems that keep modern IT running.')
+on conflict (slug) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- API roles (required for service_role bootstrap, anon read, admin client)
+-- ---------------------------------------------------------------------------
+grant usage on schema public to postgres, anon, authenticated, service_role;
+
+grant all on all tables in schema public to postgres, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on all tables in schema public to anon;
+
+grant all on all sequences in schema public to postgres, service_role, authenticated, anon;
+grant all on all routines in schema public to postgres, service_role, authenticated, anon;
+
+alter default privileges in schema public
+  grant all on tables to postgres, service_role;
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema public
+  grant select on tables to anon;
