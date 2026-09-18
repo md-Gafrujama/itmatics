@@ -9,7 +9,8 @@
     "lint": "eslint",
     "bootstrap": "node scripts/bootstrap.mjs",
     "generate:topics": "node scripts/generate-topics.mjs",
-    "db:schema": "node scripts/apply-schema.mjs"
+    "db:schema": "node scripts/apply-schema.mjs",
+    "vercel:env": "node scripts/push-vercel-env.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
