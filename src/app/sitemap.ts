@@ -19,6 +19,14 @@ function absUrl(site: string, path: string): string {
   return `${base}${p}`;
 }
 
+/** Sitemap image URLs must be XML-safe (& → &amp;). */
+function sitemapImageUrl(url: string | null | undefined): string | undefined {
+  if (!url || !/^https?:\/\//i.test(url)) return undefined;
+  // Drop tracking/query noise; also avoids bare & breaking XML parsers.
+  const clean = url.split("#")[0].split("?")[0];
+  return clean || undefined;
+}
+
 type SitemapArticle = {
   slug: string;
   updated_at: string | null;
@@ -129,10 +137,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const publishedAt = lastMod(a.published_at);
     const ageMs = publishedAt ? Date.now() - publishedAt.getTime() : Infinity;
     const fresh = ageMs < 1000 * 60 * 60 * 24 * 3;
-    const images =
-      a.cover_image_url && /^https?:\/\//i.test(a.cover_image_url)
-        ? [a.cover_image_url]
-        : undefined;
+    const images = (() => {
+      const img = sitemapImageUrl(a.cover_image_url);
+      return img ? [img] : undefined;
+    })();
 
     return {
       url: absUrl(site, `/article/${a.slug}`),
