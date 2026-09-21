@@ -21,12 +21,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Do NOT force Content-Type / X-Robots-Tag on sitemap — Next MetadataRoute
-      // already sets application/xml; overrides have caused GSC fetch issues.
-      {
-        source: "/robots.txt",
-        headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],
-      },
     ];
   },
 };

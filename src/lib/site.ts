@@ -59,9 +59,6 @@ export function getSiteUrl(): string {
 
 /** Bust cached sitemap after publish / unpublish / delete. */
 export function revalidateSitemap() {
-  // Static public/sitemap files refresh on deploy / generate:sitemap.
   revalidatePath("/sitemap.xml");
-  revalidatePath("/sitemaps/sitemap.xml");
-  revalidatePath("/url-list.txt");
   revalidatePath("/robots.txt");
 }

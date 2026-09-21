@@ -4,22 +4,16 @@ import { getNavTopics, IT_TOPIC_SLUGS } from "@/lib/topic-config";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isMissingSchemaError } from "@/lib/db-errors";
 
+/** Served at /sitemap.xml — Next MetadataRoute only */
+export const revalidate = 60;
+
 function lastMod(iso: string | null | undefined): Date | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = getSiteUrl();
   const nowIso = new Date().toISOString();
 
@@ -32,7 +26,7 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const supabase = createPublicClient();
-    const { data: articles, error: articlesError } = await supabase
+    const { data: articles, error } = await supabase
       .from("articles")
       .select("slug, updated_at, published_at, topic:topics(slug)")
       .eq("status", "published")
@@ -40,10 +34,8 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
       .lte("published_at", nowIso)
       .order("published_at", { ascending: false });
 
-    const publishedRaw = isMissingSchemaError(articlesError)
-      ? []
-      : (articles ?? []);
-    published = publishedRaw.filter((a) => {
+    const rows = isMissingSchemaError(error) ? [] : (articles ?? []);
+    published = rows.filter((a) => {
       const topic = Array.isArray(a.topic) ? a.topic[0] : a.topic;
       const slug =
         topic && typeof topic === "object" && "slug" in topic
@@ -55,7 +47,6 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
     published = [];
   }
 
-  const topicRows = getNavTopics().map((t) => ({ slug: t.slug }));
   const newest =
     published[0]?.updated_at ?? published[0]?.published_at ?? nowIso;
 
@@ -116,7 +107,7 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const topicPages: MetadataRoute.Sitemap = topicRows.map((t) => {
+  const topicPages: MetadataRoute.Sitemap = getNavTopics().map((t) => {
     const topicArticles = published.filter((a) => {
       const topic = Array.isArray(a.topic) ? a.topic[0] : a.topic;
       return (
@@ -153,30 +144,4 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   });
 
   return [...staticPages, ...topicPages, ...articlePages];
-}
-
-export async function generateSitemapXml(): Promise<string> {
-  const entries = await getSitemapEntries();
-  const body = entries
-    .map((e) => {
-      const lastmod =
-        e.lastModified instanceof Date
-          ? e.lastModified.toISOString()
-          : e.lastModified
-            ? new Date(e.lastModified).toISOString()
-            : undefined;
-      const parts = [`<url><loc>${escapeXml(e.url)}</loc>`];
-      if (lastmod) parts.push(`<lastmod>${escapeXml(lastmod)}</lastmod>`);
-      if (e.changeFrequency) {
-        parts.push(`<changefreq>${e.changeFrequency}</changefreq>`);
-      }
-      if (typeof e.priority === "number") {
-        parts.push(`<priority>${e.priority.toFixed(1)}</priority>`);
-      }
-      parts.push(`</url>`);
-      return parts.join("");
-    })
-    .join("\n");
-
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
 }
