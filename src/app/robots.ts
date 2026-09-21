@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site";
 
-/** Same pattern as healthmatics.net robots.ts */
+/** Standard robots.txt — single canonical sitemap for Search Console */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl();
   const host = new URL(site).host;
@@ -30,8 +30,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/", "/unsubscribe"],
       },
     ],
-    // Fresh path for Search Console (old /sitemap.xml entry is poisoned in GSC)
-    sitemap: `${site}/sitemap-itmatics.xml`,
+    sitemap: `${site}/sitemap.xml`,
     host,
   };
 }

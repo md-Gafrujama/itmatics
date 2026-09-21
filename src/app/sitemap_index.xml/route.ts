@@ -1,14 +1,12 @@
 import { getSiteUrl } from "@/lib/site";
 
-/**
- * Points at the fresh GSC path so any index fetch stays consistent with robots.txt.
- */
+/** Points at canonical /sitemap.xml */
 export async function GET() {
   const site = getSiteUrl();
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <sitemap>
-<loc>${site}/sitemap-itmatics.xml</loc>
+<loc>${site}/sitemap.xml</loc>
 </sitemap>
 </sitemapindex>
 `;
@@ -16,9 +14,9 @@ export async function GET() {
   return new Response(xml, {
     status: 200,
     headers: {
-      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Type": "application/xml",
       "Cache-Control": "public, max-age=0, must-revalidate",
-      "Content-Disposition": "inline",
+      "Content-Disposition": 'inline; filename="sitemap_index.xml"',
       "Access-Control-Allow-Origin": "*",
     },
   });

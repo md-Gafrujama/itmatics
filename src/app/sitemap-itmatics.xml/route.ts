@@ -11,7 +11,7 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** Fresh GSC URL — never submitted before. Submit only this in Search Console. */
+/** Alias of /sitemap.xml for GSC resubmits */
 export async function GET() {
   const entries = await sitemap();
   const body = entries
@@ -40,9 +40,9 @@ export async function GET() {
   return new Response(xml, {
     status: 200,
     headers: {
-      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Type": "application/xml",
       "Cache-Control": "public, max-age=0, must-revalidate",
-      "Content-Disposition": "inline",
+      "Content-Disposition": 'inline; filename="sitemap.xml"',
       "Access-Control-Allow-Origin": "*",
     },
   });

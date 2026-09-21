@@ -22,13 +22,24 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Match working healthmatics.net sitemap response shape
+        // Match healthmatics response shape (no Alli required)
         source: "/:path(sitemap.xml|sitemap_index.xml|sitemap-itmatics.xml)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Content-Type", value: "application/xml; charset=utf-8" },
+          { key: "Content-Type", value: "application/xml" },
           { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "Content-Disposition", value: "inline" },
+          {
+            key: "Content-Disposition",
+            value: 'inline; filename="sitemap.xml"',
+          },
+        ],
+      },
+      {
+        source: "/sitemap.txt",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Content-Type", value: "text/plain; charset=utf-8" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
         ],
       },
       {
