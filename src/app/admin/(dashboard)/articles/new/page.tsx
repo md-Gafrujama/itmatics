@@ -1,16 +1,15 @@
-import { createAdminClient } from "@/lib/supabase/admin";
-import { syncHrTopicsToDb } from "@/lib/sync-topics";
+import { createClient } from "@/lib/supabase/server";
 import { IT_TOPIC_SLUGS, sortTopicsByNavOrder } from "@/lib/topic-config";
 import { createArticle } from "@/lib/actions/articles";
 import ArticleForm from "@/components/admin/ArticleForm";
 import AiGenerateForm from "@/components/admin/AiGenerateForm";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 
-export default async function NewArticlePage() {
-  const admin = createAdminClient();
-  await syncHrTopicsToDb(admin);
+export const dynamic = "force-dynamic";
 
-  const { data: topics } = await admin.from("topics").select("*");
+export default async function NewArticlePage() {
+  const supabase = await createClient();
+  const { data: topics } = await supabase.from("topics").select("*");
   const list = sortTopicsByNavOrder(
     (topics ?? []).filter((t) => IT_TOPIC_SLUGS.has(t.slug)),
   );
