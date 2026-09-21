@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
           { key: "Content-Type", value: "application/xml; charset=utf-8" },
           { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "X-Robots-Tag", value: "index, follow" },
         ],
       },
       {
@@ -35,6 +36,7 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
           { key: "Content-Type", value: "application/xml; charset=utf-8" },
           { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "X-Robots-Tag", value: "index, follow" },
         ],
       },
       {
@@ -43,6 +45,7 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
           { key: "Content-Type", value: "application/xml; charset=utf-8" },
           { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "X-Robots-Tag", value: "index, follow" },
         ],
       },
       {
@@ -51,6 +54,7 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
           { key: "Content-Type", value: "text/plain; charset=utf-8" },
           { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "X-Robots-Tag", value: "index, follow" },
         ],
       },
       {
