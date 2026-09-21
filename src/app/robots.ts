@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site";
 
-/** Served at /robots.txt — single Sitemap line */
+/** /robots.txt — one Sitemap pointing at /sitemap.xml */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl();
 
@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/admin", "/admin/", "/api/", "/unsubscribe", "/unsubscribe/"],
+      disallow: ["/admin/", "/api/", "/unsubscribe"],
     },
     sitemap: `${site}/sitemap.xml`,
     host: new URL(site).host,

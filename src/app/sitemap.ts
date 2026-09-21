@@ -4,8 +4,8 @@ import { getNavTopics, IT_TOPIC_SLUGS } from "@/lib/topic-config";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isMissingSchemaError } from "@/lib/db-errors";
 
-/** Served at /sitemap.xml — Next MetadataRoute only */
-export const revalidate = 60;
+/** /sitemap.xml — Next.js MetadataRoute (single canonical sitemap) */
+export const revalidate = 3600;
 
 function lastMod(iso: string | null | undefined): Date | undefined {
   if (!iso) return undefined;
@@ -48,60 +48,56 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   const newest =
-    published[0]?.updated_at ?? published[0]?.published_at ?? nowIso;
+    lastMod(published[0]?.updated_at ?? published[0]?.published_at) ??
+    new Date();
 
   const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: site,
-      lastModified: lastMod(newest) ?? new Date(),
-      changeFrequency: "hourly",
-      priority: 1,
-    },
+    { url: site, lastModified: newest, changeFrequency: "daily", priority: 1 },
     {
       url: `${site}/about`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
       url: `${site}/advertise`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
       url: `${site}/editorial-standards`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "monthly",
       priority: 0.4,
     },
     {
       url: `${site}/privacy`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${site}/terms`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${site}/newsletters`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "monthly",
       priority: 0.6,
     },
     {
       url: `${site}/contact`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
       url: `${site}/resources`,
-      lastModified: new Date(),
+      lastModified: newest,
       changeFrequency: "weekly",
       priority: 0.6,
     },
@@ -118,13 +114,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       );
     });
     const topicNewest =
-      topicArticles[0]?.updated_at ??
-      topicArticles[0]?.published_at ??
-      newest;
+      lastMod(
+        topicArticles[0]?.updated_at ?? topicArticles[0]?.published_at,
+      ) ?? newest;
 
     return {
       url: `${site}/topic/${t.slug}`,
-      lastModified: lastMod(topicNewest) ?? new Date(),
+      lastModified: topicNewest,
       changeFrequency: "daily" as const,
       priority: 0.8,
     };
@@ -137,7 +133,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return {
       url: `${site}/article/${a.slug}`,
-      lastModified: lastMod(a.updated_at) ?? publishedAt ?? new Date(),
+      lastModified: lastMod(a.updated_at) ?? publishedAt ?? newest,
       changeFrequency: (fresh ? "daily" : "weekly") as "daily" | "weekly",
       priority: fresh ? 0.9 : 0.7,
     };
