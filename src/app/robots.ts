@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site";
 
-/** Standard robots.txt — single canonical sitemap for Search Console */
+/** One Sitemap line only — same as a clean healthmatics-style setup */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl();
   const host = new URL(site).host;
@@ -30,11 +30,9 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/", "/unsubscribe"],
       },
     ],
-    sitemap: [
-      `${site}/sitemap.xml`,
-      `${site}/sitemap.txt`,
-      `${site}/sitemap_index.xml`,
-    ],
+    // Fresh path for Search Console — avoid poisoned /sitemap.xml status.
+    // /sitemap.xml still works for browsers/footer.
+    sitemap: `${site}/sitemaps/sitemap.xml`,
     host,
   };
 }

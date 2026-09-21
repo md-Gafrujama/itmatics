@@ -60,8 +60,6 @@ export function getSiteUrl(): string {
 /** Bust cached sitemap after publish / unpublish / delete. */
 export function revalidateSitemap() {
   revalidatePath("/sitemap.xml");
-  revalidatePath("/sitemap.txt");
-  revalidatePath("/sitemap-itmatics.xml");
-  revalidatePath("/sitemap_index.xml");
+  revalidatePath("/sitemaps/sitemap.xml");
   revalidatePath("/robots.txt");
 }

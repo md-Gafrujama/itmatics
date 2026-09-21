@@ -1,6 +1,9 @@
 import { getSitemapEntries } from "@/lib/sitemap-generator";
 
-/** Canonical GSC sitemap — MetadataRoute only, no header overrides */
+/**
+ * Fresh GSC path: /sitemaps/sitemap.xml
+ * Submit this in Search Console (delete poisoned /sitemap.xml first).
+ */
 export const revalidate = 60;
 
 export default async function sitemap() {

@@ -21,42 +21,8 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      {
-        source: "/sitemap.xml",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Content-Type", value: "application/xml; charset=utf-8" },
-          { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "X-Robots-Tag", value: "index, follow" },
-        ],
-      },
-      {
-        source: "/sitemap_index.xml",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Content-Type", value: "application/xml; charset=utf-8" },
-          { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "X-Robots-Tag", value: "index, follow" },
-        ],
-      },
-      {
-        source: "/sitemap-itmatics.xml",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Content-Type", value: "application/xml; charset=utf-8" },
-          { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "X-Robots-Tag", value: "index, follow" },
-        ],
-      },
-      {
-        source: "/sitemap.txt",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-          { key: "Content-Type", value: "text/plain; charset=utf-8" },
-          { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "X-Robots-Tag", value: "index, follow" },
-        ],
-      },
+      // Do NOT force Content-Type / X-Robots-Tag on sitemap — Next MetadataRoute
+      // already sets application/xml; overrides have caused GSC fetch issues.
       {
         source: "/robots.txt",
         headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],

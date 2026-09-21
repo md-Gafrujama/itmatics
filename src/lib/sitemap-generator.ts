@@ -171,7 +171,7 @@ export async function generateSitemapXml(): Promise<string> {
         parts.push(`<changefreq>${e.changeFrequency}</changefreq>`);
       }
       if (typeof e.priority === "number") {
-        parts.push(`<priority>${e.priority}</priority>`);
+        parts.push(`<priority>${e.priority.toFixed(1)}</priority>`);
       }
       parts.push(`</url>`);
       return parts.join("");
