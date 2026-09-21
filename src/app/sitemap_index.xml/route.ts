@@ -14,9 +14,8 @@ export async function GET() {
   return new Response(xml, {
     status: 200,
     headers: {
-      "Content-Type": "application/xml",
+      "Content-Type": "application/xml; charset=utf-8",
       "Cache-Control": "public, max-age=0, must-revalidate",
-      "Content-Disposition": 'inline; filename="sitemap_index.xml"',
       "Access-Control-Allow-Origin": "*",
     },
   });
