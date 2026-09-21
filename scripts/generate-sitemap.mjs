@@ -1,9 +1,6 @@
 /**
- * Write a static public/sitemap.xml for Google Search Console.
- * Keep it simple: no image: namespace, second-precision lastmod, pretty XML.
- * (Image extensions + exotic lastmod formats have caused GSC "Couldn't fetch".)
- *
- * Usage: node scripts/generate-sitemap.mjs
+ * Static public/sitemap.xml + public/robots.txt for Google Search Console.
+ * Pure CDN files (no Next MetadataRoute / edge function) — more reliable for Googlebot.
  */
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -12,10 +9,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
-const OUT = resolve(ROOT, "public", "sitemap.xml");
-const OUT_NESTED = resolve(ROOT, "public", "sitemap", "sitemap.xml");
-const OUT_SC = resolve(ROOT, "public", "sc-sitemap.xml");
-const OUT_TXT = resolve(ROOT, "public", "sitemap.txt");
 const SITE = "https://www.itmaticsnews.com";
 
 const TOPIC_SLUGS = [
@@ -61,17 +54,14 @@ function escapeXml(value) {
 }
 
 function abs(path) {
+  if (path === "/" || path === "") return SITE;
   return `${SITE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-/** Google-safe W3C datetime: 2005-05-10T17:33:30Z */
 function toLastmod(value) {
-  if (!value) return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) {
-    return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-  }
-  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
+  const d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) return new Date().toISOString();
+  return d.toISOString();
 }
 
 function topicSlugOf(row) {
@@ -84,50 +74,57 @@ function topicSlugOf(row) {
 async function loadArticles() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !key) {
-    console.warn("[sitemap] Missing Supabase env — writing static pages only");
+  if (!url || !key) return [];
+
+  try {
+    const supabase = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("articles")
+      .select("slug, updated_at, published_at, topic:topics(slug)")
+      .eq("status", "published")
+      .not("published_at", "is", null)
+      .lte("published_at", nowIso)
+      .order("published_at", { ascending: false });
+    if (error) return [];
+    return (data ?? []).filter((a) => {
+      const slug = topicSlugOf(a);
+      return Boolean(slug && TOPIC_SET.has(slug) && a.slug);
+    });
+  } catch {
     return [];
   }
-
-  const supabase = createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("articles")
-    .select("slug, updated_at, published_at, topic:topics(slug)")
-    .eq("status", "published")
-    .not("published_at", "is", null)
-    .lte("published_at", nowIso)
-    .order("published_at", { ascending: false });
-
-  if (error) {
-    console.warn("[sitemap] Supabase error:", error.message);
-    return [];
-  }
-
-  return (data ?? []).filter((a) => {
-    const slug = topicSlugOf(a);
-    return Boolean(slug && TOPIC_SET.has(slug) && a.slug);
-  });
 }
 
-function render(entries) {
+function renderXml(entries) {
   const body = entries
     .map((e) => {
-      const parts = [
-        "  <url>",
-        `    <loc>${escapeXml(e.loc)}</loc>`,
-        `    <lastmod>${escapeXml(e.lastmod)}</lastmod>`,
-        `    <changefreq>${e.changefreq}</changefreq>`,
-        `    <priority>${e.priority}</priority>`,
-        "  </url>",
-      ];
-      return parts.join("\n");
+      return [
+        "<url>",
+        `<loc>${escapeXml(e.loc)}</loc>`,
+        `<lastmod>${escapeXml(e.lastmod)}</lastmod>`,
+        `<changefreq>${e.changefreq}</changefreq>`,
+        `<priority>${e.priority}</priority>`,
+        "</url>",
+      ].join("");
     })
-    .join("\n");
+    .join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>\n`;
+}
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
+function renderRobots() {
+  return `User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /unsubscribe
+Disallow: /unsubscribe/
+
+Sitemap: ${SITE}/sitemap.xml
+`;
 }
 
 async function main() {
@@ -179,19 +176,9 @@ async function main() {
   ];
 
   mkdirSync(resolve(ROOT, "public"), { recursive: true });
-  mkdirSync(resolve(ROOT, "public", "sitemap"), { recursive: true });
-  const xml = render(entries);
-  writeFileSync(OUT, xml, "utf8");
-  writeFileSync(OUT_NESTED, xml, "utf8");
-  writeFileSync(OUT_SC, xml, "utf8");
-  writeFileSync(
-    OUT_TXT,
-    entries.map((e) => e.loc).join("\n") + "\n",
-    "utf8",
-  );
-  console.log(
-    `[sitemap] Wrote ${entries.length} URLs → sitemap.xml, sitemap/sitemap.xml, sc-sitemap.xml, sitemap.txt`,
-  );
+  writeFileSync(resolve(ROOT, "public", "sitemap.xml"), renderXml(entries), "utf8");
+  writeFileSync(resolve(ROOT, "public", "robots.txt"), renderRobots(), "utf8");
+  console.log(`[sitemap] Wrote ${entries.length} URLs → public/sitemap.xml + robots.txt`);
 }
 
 main().catch((err) => {

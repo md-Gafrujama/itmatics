@@ -1,0 +1,9 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /unsubscribe
+Disallow: /unsubscribe/
+
+Sitemap: https://www.itmaticsnews.com/sitemap.xml
