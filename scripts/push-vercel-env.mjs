@@ -77,7 +77,7 @@ function main() {
   }
 
   // Force canonical site URL for production deploys.
-  env.set("NEXT_PUBLIC_SITE_URL", "https://itmaticsnews.com");
+  env.set("NEXT_PUBLIC_SITE_URL", "https://www.itmaticsnews.com");
 
   console.log("Pushing env vars to Vercel for:", TARGETS.join(", "));
   console.log("Site URL:", env.get("NEXT_PUBLIC_SITE_URL"));

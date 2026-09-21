@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 
-const PRODUCTION_SITE_URL = "https://itmaticsnews.com";
+const PRODUCTION_SITE_URL = "https://www.itmaticsnews.com";
 
 function isLocalhostUrl(url: string): boolean {
   return /localhost|127\.0\.0\.1/i.test(url);
