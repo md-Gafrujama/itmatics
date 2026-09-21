@@ -28,8 +28,7 @@ export function getSiteUrl(): string {
 
 /** Bust cached sitemap after publish / unpublish / delete. */
 export function revalidateSitemap() {
-  revalidatePath("/seo/sitemap");
+  // public/sitemap.xml is rebuilt on deploy (prebuild). Soft-purge CDN path.
   revalidatePath("/sitemap.xml");
-  revalidatePath("/sitemap/sitemap.xml");
   revalidatePath("/robots.txt");
 }

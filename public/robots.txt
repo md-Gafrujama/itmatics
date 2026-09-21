@@ -1,0 +1,39 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /unsubscribe
+Disallow: /unsubscribe/
+
+User-Agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+User-Agent: Google-Extended
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+User-Agent: ChatGPT-User
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+User-Agent: anthropic-ai
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+User-Agent: ClaudeBot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://www.itmaticsnews.com/sitemap.xml

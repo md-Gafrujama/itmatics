@@ -9,22 +9,6 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 86400, // 24h
   },
   devIndicators: false,
-  async rewrites() {
-    // Serve sitemap from /seo/sitemap (outside /api so robots Disallow: /api/
-    // cannot block Google; avoids .xml path Content-Disposition quirks).
-    return {
-      beforeFiles: [
-        {
-          source: "/sitemap.xml",
-          destination: "/seo/sitemap",
-        },
-        {
-          source: "/sitemap/sitemap.xml",
-          destination: "/seo/sitemap",
-        },
-      ],
-    };
-  },
   async headers() {
     return [
       {
@@ -37,23 +21,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Static public/sitemap.xml — plain CDN file Google can fetch
         source: "/sitemap.xml",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, s-maxage=300, stale-while-revalidate=600",
+            value: "public, max-age=0, s-maxage=300, must-revalidate",
           },
           { key: "Content-Type", value: "application/xml; charset=utf-8" },
-        ],
-      },
-      {
-        source: "/sitemap/sitemap.xml",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, s-maxage=300, stale-while-revalidate=600",
-          },
-          { key: "Content-Type", value: "application/xml; charset=utf-8" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
       {
