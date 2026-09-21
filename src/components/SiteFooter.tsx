@@ -68,7 +68,7 @@ export default function SiteFooter() {
                     <path d="M18.9 2H22l-7.3 8.3L23 22h-6.6l-5.2-6.8L5.3 22H2l7.8-8.9L1.5 2h6.8l4.7 6.2zm-1.1 18h1.8L7.3 3.8H5.4z" />
                   </svg>
                 </a>
-                <Link href="/sitemap.xml" aria-label="Sitemap">
+                <Link href="/sc-sitemap.xml" aria-label="Sitemap">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                     <circle cx="5" cy="19" r="2.5" />
                     <path d="M3 10.5A10.5 10.5 0 0 1 13.5 21h3A13.5 13.5 0 0 0 3 7.5zM3 4a17 17 0 0 1 17 17h3A20 20 0 0 0 3 1z" />

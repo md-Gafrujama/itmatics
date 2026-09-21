@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/(sitemap.xml|gsc-sitemap.xml|sitemap.txt)",
+        source: "/(sitemap.xml|sc-sitemap.xml|sitemap.txt)",
         headers: [
           {
             key: "Cache-Control",
@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/(sitemap.xml|gsc-sitemap.xml)",
+        source: "/(sitemap.xml|sc-sitemap.xml)",
         headers: [
           { key: "Content-Type", value: "text/xml; charset=utf-8" },
         ],

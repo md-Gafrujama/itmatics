@@ -13,7 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const OUT = resolve(ROOT, "public", "sitemap.xml");
-const OUT_ALT = resolve(ROOT, "public", "gsc-sitemap.xml");
+const OUT_SC = resolve(ROOT, "public", "sc-sitemap.xml");
 const OUT_TXT = resolve(ROOT, "public", "sitemap.txt");
 const SITE = "https://www.itmaticsnews.com";
 
@@ -180,15 +180,15 @@ async function main() {
   mkdirSync(resolve(ROOT, "public"), { recursive: true });
   const xml = render(entries);
   writeFileSync(OUT, xml, "utf8");
-  writeFileSync(OUT_ALT, xml, "utf8");
-  // Google also accepts a plain-text sitemap (one URL per line).
+  // Fresh path for Google Search Console (avoid poisoned /sitemap.xml cache).
+  writeFileSync(OUT_SC, xml, "utf8");
   writeFileSync(
     OUT_TXT,
     entries.map((e) => e.loc).join("\n") + "\n",
     "utf8",
   );
   console.log(
-    `[sitemap] Wrote ${entries.length} URLs → sitemap.xml, gsc-sitemap.xml, sitemap.txt`,
+    `[sitemap] Wrote ${entries.length} URLs → sitemap.xml, sc-sitemap.xml, sitemap.txt`,
   );
 }
 
