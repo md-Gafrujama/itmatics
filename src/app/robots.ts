@@ -7,6 +7,9 @@ import { getSiteUrl } from "@/lib/site";
  */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl().replace(/\/+$/, "");
+  // Host must be hostname only (no https://). Google ignores Host, but
+  // keep robots.txt valid for other crawlers.
+  const host = site.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
 
   return {
     rules: [
@@ -49,6 +52,6 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     sitemap: `${site}/sitemap.xml`,
-    host: site,
+    host,
   };
 }
