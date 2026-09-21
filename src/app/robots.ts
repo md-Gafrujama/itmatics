@@ -30,7 +30,8 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/", "/unsubscribe"],
       },
     ],
-    sitemap: [`${site}/sitemap_index.xml`, `${site}/sitemap.xml`],
+    // Only one sitemap — same as healthmatics (GSC property = www)
+    sitemap: `${site}/sitemap.xml`,
     host,
   };
 }
