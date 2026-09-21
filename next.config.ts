@@ -27,6 +27,17 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Content-Type", value: "text/xml; charset=utf-8" },
           { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, HEAD, OPTIONS" },
+          { key: "Cache-Control", value: "public, max-age=3600" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      {
+        source: "/sm/gsc.xml",
+        headers: [
+          { key: "Content-Type", value: "text/xml; charset=utf-8" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, HEAD, OPTIONS" },
           { key: "Cache-Control", value: "public, max-age=3600" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],

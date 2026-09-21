@@ -166,14 +166,20 @@ async function main() {
   ];
 
   const publicDir = resolve(ROOT, "public");
+  const smDir = resolve(publicDir, "sm");
   mkdirSync(publicDir, { recursive: true });
-  writeFileSync(resolve(publicDir, "sitemap.xml"), renderXml(entries), "utf8");
+  mkdirSync(smDir, { recursive: true });
+
+  const xml = renderXml(entries);
+  // Canonical + never-submitted GSC path (avoids Google backoff on /sitemap.xml)
+  writeFileSync(resolve(publicDir, "sitemap.xml"), xml, "utf8");
+  writeFileSync(resolve(smDir, "gsc.xml"), xml, "utf8");
   writeFileSync(
     resolve(publicDir, "robots.txt"),
-    `User-Agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nDisallow: /unsubscribe\n\nHost: www.itmaticsnews.com\nSitemap: ${SITE}/sitemap.xml\n`,
+    `User-Agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /api/\nDisallow: /unsubscribe\n\nHost: www.itmaticsnews.com\nSitemap: ${SITE}/sm/gsc.xml\n`,
     "utf8",
   );
-  console.log(`[sitemap] ${entries.length} URLs → public/sitemap.xml`);
+  console.log(`[sitemap] ${entries.length} URLs → public/sitemap.xml + public/sm/gsc.xml`);
 }
 
 main().catch((err) => {
