@@ -30,7 +30,11 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/api/", "/unsubscribe"],
       },
     ],
-    sitemap: `${site}/sitemap.xml`,
+    sitemap: [
+      `${site}/sitemap.xml`,
+      `${site}/sitemap.txt`,
+      `${site}/sitemap_index.xml`,
+    ],
     host,
   };
 }
