@@ -21,16 +21,27 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/(sitemap.xml|gsc-sitemap.xml)",
+        source: "/(sitemap.xml|gsc-sitemap.xml|sitemap.txt)",
         headers: [
           {
             key: "Cache-Control",
             value: "public, max-age=0, s-maxage=300, must-revalidate",
           },
-          { key: "Content-Type", value: "text/xml; charset=utf-8" },
           { key: "Content-Disposition", value: "inline" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Access-Control-Allow-Origin", value: "*" },
+        ],
+      },
+      {
+        source: "/(sitemap.xml|gsc-sitemap.xml)",
+        headers: [
+          { key: "Content-Type", value: "text/xml; charset=utf-8" },
+        ],
+      },
+      {
+        source: "/sitemap.txt",
+        headers: [
+          { key: "Content-Type", value: "text/plain; charset=utf-8" },
         ],
       },
       {

@@ -14,6 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const OUT = resolve(ROOT, "public", "sitemap.xml");
 const OUT_ALT = resolve(ROOT, "public", "gsc-sitemap.xml");
+const OUT_TXT = resolve(ROOT, "public", "sitemap.txt");
 const SITE = "https://www.itmaticsnews.com";
 
 const TOPIC_SLUGS = [
@@ -180,8 +181,14 @@ async function main() {
   const xml = render(entries);
   writeFileSync(OUT, xml, "utf8");
   writeFileSync(OUT_ALT, xml, "utf8");
+  // Google also accepts a plain-text sitemap (one URL per line).
+  writeFileSync(
+    OUT_TXT,
+    entries.map((e) => e.loc).join("\n") + "\n",
+    "utf8",
+  );
   console.log(
-    `[sitemap] Wrote ${entries.length} URLs → public/sitemap.xml + public/gsc-sitemap.xml`,
+    `[sitemap] Wrote ${entries.length} URLs → sitemap.xml, gsc-sitemap.xml, sitemap.txt`,
   );
 }
 
