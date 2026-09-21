@@ -37,3 +37,4 @@ Disallow: /admin/
 Disallow: /api/
 
 Sitemap: https://www.itmaticsnews.com/sitemap.xml
+Sitemap: https://www.itmaticsnews.com/gsc-sitemap.xml

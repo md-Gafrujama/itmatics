@@ -1,9 +1,9 @@
 /**
  * Write a static public/sitemap.xml for Google Search Console.
- * Dynamic Next rewrites/routes often show GSC "Couldn't fetch" even when curl works.
+ * Keep it simple: no image: namespace, second-precision lastmod, pretty XML.
+ * (Image extensions + exotic lastmod formats have caused GSC "Couldn't fetch".)
  *
  * Usage: node scripts/generate-sitemap.mjs
- * Runs automatically before `next build`.
  */
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -13,6 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const OUT = resolve(ROOT, "public", "sitemap.xml");
+const OUT_ALT = resolve(ROOT, "public", "gsc-sitemap.xml");
 const SITE = "https://www.itmaticsnews.com";
 
 const TOPIC_SLUGS = [
@@ -61,9 +62,14 @@ function abs(path) {
   return `${SITE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-function cleanImage(url) {
-  if (!url || !/^https?:\/\//i.test(url)) return null;
-  return url.split("#")[0].split("?")[0] || null;
+/** Google-safe W3C datetime: 2005-05-10T17:33:30Z */
+function toLastmod(value) {
+  if (!value) return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  }
+  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function topicSlugOf(row) {
@@ -87,7 +93,7 @@ async function loadArticles() {
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("articles")
-    .select("slug, updated_at, published_at, cover_image_url, topic:topics(slug)")
+    .select("slug, updated_at, published_at, topic:topics(slug)")
     .eq("status", "published")
     .not("published_at", "is", null)
     .lte("published_at", nowIso)
@@ -105,32 +111,30 @@ async function loadArticles() {
 }
 
 function render(entries) {
-  const hasImages = entries.some((e) => e.image);
-  const imageNs = hasImages
-    ? ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
-    : "";
   const body = entries
     .map((e) => {
-      let xml = `<url><loc>${escapeXml(e.loc)}</loc>`;
-      if (e.lastmod) xml += `<lastmod>${escapeXml(e.lastmod)}</lastmod>`;
-      if (e.changefreq) xml += `<changefreq>${e.changefreq}</changefreq>`;
-      if (e.priority != null) xml += `<priority>${e.priority}</priority>`;
-      if (e.image) {
-        xml += `<image:image><image:loc>${escapeXml(e.image)}</image:loc></image:image>`;
-      }
-      xml += `</url>`;
-      return xml;
+      const parts = [
+        "  <url>",
+        `    <loc>${escapeXml(e.loc)}</loc>`,
+        `    <lastmod>${escapeXml(e.lastmod)}</lastmod>`,
+        `    <changefreq>${e.changefreq}</changefreq>`,
+        `    <priority>${e.priority}</priority>`,
+        "  </url>",
+      ];
+      return parts.join("\n");
     })
-    .join("");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${imageNs}>${body}</urlset>\n`;
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
 }
 
 async function main() {
   loadEnv();
   const articles = await loadArticles();
-  const newest =
-    articles[0]?.updated_at || articles[0]?.published_at || new Date().toISOString();
-  const now = new Date().toISOString();
+  const newest = toLastmod(
+    articles[0]?.updated_at || articles[0]?.published_at || new Date(),
+  );
+  const now = toLastmod(new Date());
 
   const staticPaths = [
     ["/", "hourly", 1, newest],
@@ -165,17 +169,20 @@ async function main() {
       const fresh = age < 1000 * 60 * 60 * 24 * 3;
       return {
         loc: abs(`/article/${a.slug}`),
-        lastmod: a.updated_at || a.published_at || newest,
+        lastmod: toLastmod(a.updated_at || a.published_at || newest),
         changefreq: fresh ? "daily" : "weekly",
         priority: fresh ? 0.9 : 0.7,
-        image: cleanImage(a.cover_image_url),
       };
     }),
   ];
 
   mkdirSync(resolve(ROOT, "public"), { recursive: true });
-  writeFileSync(OUT, render(entries), "utf8");
-  console.log(`[sitemap] Wrote ${entries.length} URLs → public/sitemap.xml`);
+  const xml = render(entries);
+  writeFileSync(OUT, xml, "utf8");
+  writeFileSync(OUT_ALT, xml, "utf8");
+  console.log(
+    `[sitemap] Wrote ${entries.length} URLs → public/sitemap.xml + public/gsc-sitemap.xml`,
+  );
 }
 
 main().catch((err) => {

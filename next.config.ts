@@ -21,15 +21,16 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Static public/sitemap.xml — plain CDN file Google can fetch
-        source: "/sitemap.xml",
+        source: "/(sitemap.xml|gsc-sitemap.xml)",
         headers: [
           {
             key: "Cache-Control",
             value: "public, max-age=0, s-maxage=300, must-revalidate",
           },
-          { key: "Content-Type", value: "application/xml; charset=utf-8" },
+          { key: "Content-Type", value: "text/xml; charset=utf-8" },
+          { key: "Content-Disposition", value: "inline" },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
         ],
       },
       {
