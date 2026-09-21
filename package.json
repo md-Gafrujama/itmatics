@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/generate-sitemap.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "bootstrap": "node scripts/bootstrap.mjs",
     "generate:topics": "node scripts/generate-topics.mjs",
+    "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "db:schema": "node scripts/apply-schema.mjs",
     "vercel:env": "node scripts/push-vercel-env.mjs"
   },
