@@ -1,41 +1,9 @@
-import sitemap from "@/app/sitemap";
+import { generateSitemapXml } from "@/lib/sitemap-generator";
 
 export const revalidate = 60;
 
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-/** Alias of /sitemap.xml for GSC resubmits */
 export async function GET() {
-  const entries = await sitemap();
-  const body = entries
-    .map((e) => {
-      const lastmod =
-        e.lastModified instanceof Date
-          ? e.lastModified.toISOString()
-          : e.lastModified
-            ? new Date(e.lastModified).toISOString()
-            : undefined;
-      const parts = [`<url><loc>${escapeXml(e.url)}</loc>`];
-      if (lastmod) parts.push(`<lastmod>${escapeXml(lastmod)}</lastmod>`);
-      if (e.changeFrequency) {
-        parts.push(`<changefreq>${e.changeFrequency}</changefreq>`);
-      }
-      if (typeof e.priority === "number") {
-        parts.push(`<priority>${e.priority}</priority>`);
-      }
-      parts.push(`</url>`);
-      return parts.join("");
-    })
-    .join("");
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>\n`;
+  const xml = await generateSitemapXml();
 
   return new Response(xml, {
     status: 200,
