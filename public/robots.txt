@@ -1,0 +1,10 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /unsubscribe
+Disallow: /unsubscribe/
+
+Host: www.itmaticsnews.com
+Sitemap: https://www.itmaticsnews.com/url-list.txt

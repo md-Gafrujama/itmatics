@@ -1,6 +1,6 @@
 /**
- * Static public/sitemap.xml + public/robots.txt for Google Search Console.
- * Pure CDN files (no Next MetadataRoute / edge function) — more reliable for Googlebot.
+ * Static CDN files for Google Search Console.
+ * Pure public/ files (no Next MetadataRoute) — more reliable for GSC fetch.
  */
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -101,12 +101,14 @@ async function loadArticles() {
 function renderXml(entries) {
   const body = entries
     .map((e) => {
+      const priority =
+        typeof e.priority === "number" ? e.priority.toFixed(1) : e.priority;
       return [
         "<url>",
         `<loc>${escapeXml(e.loc)}</loc>`,
         `<lastmod>${escapeXml(e.lastmod)}</lastmod>`,
         `<changefreq>${e.changefreq}</changefreq>`,
-        `<priority>${e.priority}</priority>`,
+        `<priority>${priority}</priority>`,
         "</url>",
       ].join("");
     })
@@ -114,6 +116,11 @@ function renderXml(entries) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>\n`;
 }
 
+function renderText(entries) {
+  return `${entries.map((e) => e.loc).join("\n")}\n`;
+}
+
+/** Fresh GSC path — plain-text sitemap (Google-supported, never poisoned). */
 function renderRobots() {
   return `User-Agent: *
 Allow: /
@@ -123,7 +130,8 @@ Disallow: /api/
 Disallow: /unsubscribe
 Disallow: /unsubscribe/
 
-Sitemap: ${SITE}/sitemap.xml
+Host: www.itmaticsnews.com
+Sitemap: ${SITE}/url-list.txt
 `;
 }
 
@@ -175,10 +183,21 @@ async function main() {
     }),
   ];
 
-  mkdirSync(resolve(ROOT, "public"), { recursive: true });
-  writeFileSync(resolve(ROOT, "public", "sitemap.xml"), renderXml(entries), "utf8");
-  writeFileSync(resolve(ROOT, "public", "robots.txt"), renderRobots(), "utf8");
-  console.log(`[sitemap] Wrote ${entries.length} URLs → public/sitemap.xml + robots.txt`);
+  const publicDir = resolve(ROOT, "public");
+  mkdirSync(publicDir, { recursive: true });
+  mkdirSync(resolve(publicDir, "sitemaps"), { recursive: true });
+
+  const xml = renderXml(entries);
+  const text = renderText(entries);
+
+  writeFileSync(resolve(publicDir, "sitemap.xml"), xml, "utf8");
+  writeFileSync(resolve(publicDir, "sitemaps", "sitemap.xml"), xml, "utf8");
+  writeFileSync(resolve(publicDir, "url-list.txt"), text, "utf8");
+  writeFileSync(resolve(publicDir, "robots.txt"), renderRobots(), "utf8");
+
+  console.log(
+    `[sitemap] Wrote ${entries.length} URLs → public/sitemap.xml, public/sitemaps/sitemap.xml, public/url-list.txt, public/robots.txt`,
+  );
 }
 
 main().catch((err) => {
