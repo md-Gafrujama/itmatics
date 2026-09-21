@@ -224,6 +224,7 @@ export function sitemapResponseHeaders(): HeadersInit {
   return {
     "Content-Type": "application/xml; charset=utf-8",
     "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-    // Avoid Content-Disposition — some Google crawlers mishandle it on sitemaps.
+    // Explicit empty disposition — do not send filename= (GSC fetch quirks).
+    "Content-Disposition": "inline",
   };
 }

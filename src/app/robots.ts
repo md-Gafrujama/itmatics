@@ -7,9 +7,6 @@ import { getSiteUrl } from "@/lib/site";
  */
 export default function robots(): MetadataRoute.Robots {
   const site = getSiteUrl().replace(/\/+$/, "");
-  // Host must be hostname only (no https://). Google ignores Host, but
-  // keep robots.txt valid for other crawlers.
-  const host = site.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
 
   return {
     rules: [
@@ -51,7 +48,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/admin/", "/api/"],
       },
     ],
-    sitemap: `${site}/sitemap/sitemap.xml`,
-    host,
+    // Advertise the public URL (rewritten to /api/seo/sitemap internally).
+    sitemap: [`${site}/sitemap.xml`, `${site}/sitemap/sitemap.xml`],
   };
 }

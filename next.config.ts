@@ -9,15 +9,52 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 86400, // 24h
   },
   devIndicators: false,
+  async rewrites() {
+    // Serve sitemap from /seo/sitemap (outside /api so robots Disallow: /api/
+    // cannot block Google; avoids .xml path Content-Disposition quirks).
+    return {
+      beforeFiles: [
+        {
+          source: "/sitemap.xml",
+          destination: "/seo/sitemap",
+        },
+        {
+          source: "/sitemap/sitemap.xml",
+          destination: "/seo/sitemap",
+        },
+      ],
+    };
+  },
   async headers() {
     return [
       {
         source: "/(favicon.ico|favicon-32x32.png|icon-192.png|brand/mark.svg)",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
       },
       {
         source: "/sitemap.xml",
-        headers: [{ key: "Cache-Control", value: "public, s-maxage=300, stale-while-revalidate=600" }],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=300, stale-while-revalidate=600",
+          },
+          { key: "Content-Type", value: "application/xml; charset=utf-8" },
+        ],
+      },
+      {
+        source: "/sitemap/sitemap.xml",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=300, stale-while-revalidate=600",
+          },
+          { key: "Content-Type", value: "application/xml; charset=utf-8" },
+        ],
       },
       {
         source: "/robots.txt",
