@@ -57,8 +57,8 @@ export function getSiteUrl(): string {
   return "http://localhost:3000";
 }
 
-/** Bust cached routes after publish. Sitemap XML is rebuilt on deploy. */
+/** Bust cached sitemap after publish / unpublish / delete. */
 export function revalidateSitemap() {
-  revalidatePath("/");
+  revalidatePath("/sitemap.xml");
   revalidatePath("/robots.txt");
 }
