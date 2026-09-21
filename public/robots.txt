@@ -6,4 +6,4 @@ Disallow: /api/
 Disallow: /unsubscribe
 Disallow: /unsubscribe/
 
-Sitemap: https://www.itmaticsnews.com/sc-sitemap.xml
+Sitemap: https://www.itmaticsnews.com/sitemap/sitemap.xml

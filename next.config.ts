@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // GSC sometimes requests /sitemap.xml/ — don't 308 that away.
+  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.pexels.com" },
@@ -21,7 +23,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/(sitemap.xml|sc-sitemap.xml|sitemap.txt)",
+        source: "/:path(sitemap.xml|sc-sitemap.xml|sitemap.txt|sitemap/sitemap.xml)",
         headers: [
           {
             key: "Cache-Control",
@@ -33,7 +35,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: "/(sitemap.xml|sc-sitemap.xml)",
+        source: "/:path(sitemap.xml|sc-sitemap.xml|sitemap/sitemap.xml)",
         headers: [
           { key: "Content-Type", value: "text/xml; charset=utf-8" },
         ],

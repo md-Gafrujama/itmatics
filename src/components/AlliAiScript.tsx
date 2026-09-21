@@ -18,8 +18,7 @@ export default function AlliAiScript() {
   js.async=1;
   fjs.parentNode.insertBefore(js,fjs);
 })(window,document,'script','alli','https://static.alliai.com/widget/v1.js');
-alli('init','site_wPntN34gRXgYTArY');
-alli('optimize','all');`}
+alli('init','site_wPntN34gRXgYTArY');`}
     </Script>
   );
 }
