@@ -1,29 +1,37 @@
 import { buildSitemapXml } from "@/lib/sitemap";
 
-export const revalidate = 60;
+/** ISR so the CDN can cache a full body (with Content-Length) for GSC. */
+export const revalidate = 3600;
+export const dynamic = "force-static";
 
-/** /sitemap.xml — explicit route so GSC gets clean XML headers (no Content-Disposition). */
+function xmlHeaders(byteLength: number): HeadersInit {
+  return {
+    "Content-Type": "application/xml; charset=utf-8",
+    "Content-Length": String(byteLength),
+    // Edge cache: GSC should hit CDN, not a chunked serverless stream.
+    "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    "X-Content-Type-Options": "nosniff",
+  };
+}
+
+async function sitemapXml(): Promise<{ text: string; byteLength: number }> {
+  const text = await buildSitemapXml();
+  return { text, byteLength: new TextEncoder().encode(text).byteLength };
+}
+
 export async function GET() {
-  const xml = await buildSitemapXml();
-
-  return new Response(xml, {
+  const { text, byteLength } = await sitemapXml();
+  return new Response(text, {
     status: 200,
-    headers: {
-      "Content-Type": "text/xml; charset=utf-8",
-      "Cache-Control": "public, max-age=0, must-revalidate",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: xmlHeaders(byteLength),
   });
 }
 
-export function OPTIONS() {
+/** GSC often probes with HEAD before GET — must advertise Content-Length. */
+export async function HEAD() {
+  const { byteLength } = await sitemapXml();
   return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-    },
+    status: 200,
+    headers: xmlHeaders(byteLength),
   });
 }

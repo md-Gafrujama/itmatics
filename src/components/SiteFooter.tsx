@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
+import CookiePreferencesTrigger from "@/components/CookiePreferencesTrigger";
 import { getNavTopics } from "@/lib/topic-config";
 
 export default function SiteFooter() {
@@ -122,6 +123,12 @@ export default function SiteFooter() {
                   <Link href="/privacy">Privacy</Link>
                 </li>
                 <li>
+                  <Link href="/privacy#cookies">Cookies</Link>
+                </li>
+                <li>
+                  <CookiePreferencesTrigger className="foot-cookie-prefs" />
+                </li>
+                <li>
                   <Link href="/terms">Terms</Link>
                 </li>
               </ul>
@@ -134,6 +141,10 @@ export default function SiteFooter() {
             © {year} ITmatics News. Published by Quore B2B Marketing.
             {" · "}
             <Link href="/privacy">Privacy</Link>
+            {" · "}
+            <Link href="/privacy#cookies">Cookies</Link>
+            {" · "}
+            <CookiePreferencesTrigger className="foot-cookie-prefs" />
             {" · "}
             <Link href="/terms">Terms</Link>
           </div>

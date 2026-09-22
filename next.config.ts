@@ -26,10 +26,9 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=0, must-revalidate",
+            value: "public, s-maxage=3600, stale-while-revalidate=86400",
           },
-          { key: "Content-Type", value: "text/xml; charset=utf-8" },
-          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Content-Type", value: "application/xml; charset=utf-8" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },

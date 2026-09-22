@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import AlliAiScript from "@/components/AlliAiScript";
 import ClientEffects from "@/components/ClientEffects";
+import CookieConsentShell from "@/components/CookieConsentShell";
 import RouteLoaderHost from "@/components/RouteLoaderHost";
 import SubscribeModal, { Toast } from "@/components/SubscribeModal";
 import JsonLd from "@/components/JsonLd";
@@ -116,6 +117,7 @@ export default function RootLayout({
         <ClientEffects />
         <SubscribeModal />
         <Toast />
+        <CookieConsentShell />
       </body>
     </html>
   );

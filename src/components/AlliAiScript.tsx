@@ -7,7 +7,7 @@ import Script from "next/script";
  */
 export default function AlliAiScript() {
   return (
-    <Script id="alli-ai-widget" strategy="afterInteractive">
+    <Script id="alli-ai-widget" strategy="lazyOnload">
       {`(function (w,d,s,o,f,js,fjs) {
   w['AlliJSWidget']=o;
   w[o]=w[o]||function(){(w[o].q=w[o].q||[]).push(arguments)};
