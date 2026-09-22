@@ -28,6 +28,9 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=0, must-revalidate",
           },
+          { key: "Content-Type", value: "text/xml; charset=utf-8" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
         ],
       },
       {

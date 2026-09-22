@@ -4,16 +4,22 @@ import { getNavTopics, IT_TOPIC_SLUGS } from "@/lib/topic-config";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isMissingSchemaError } from "@/lib/db-errors";
 
-/** /sitemap.xml — canonical GSC sitemap */
-export const revalidate = 60;
-
 function lastMod(iso: string | null | undefined): Date | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   const site = getSiteUrl();
   const nowIso = new Date().toISOString();
 
@@ -140,4 +146,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   return [...staticPages, ...topicPages, ...articlePages];
+}
+
+export async function buildSitemapXml(): Promise<string> {
+  const entries = await getSitemapEntries();
+  const body = entries
+    .map((e) => {
+      const lastmod =
+        e.lastModified instanceof Date
+          ? e.lastModified.toISOString()
+          : e.lastModified
+            ? new Date(e.lastModified).toISOString()
+            : undefined;
+      const priority =
+        typeof e.priority === "number" ? e.priority.toFixed(1) : undefined;
+      const parts = [`<url><loc>${escapeXml(e.url)}</loc>`];
+      if (lastmod) parts.push(`<lastmod>${escapeXml(lastmod)}</lastmod>`);
+      if (e.changeFrequency) {
+        parts.push(`<changefreq>${e.changeFrequency}</changefreq>`);
+      }
+      if (priority) parts.push(`<priority>${priority}</priority>`);
+      parts.push(`</url>`);
+      return parts.join("");
+    })
+    .join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>\n`;
 }
