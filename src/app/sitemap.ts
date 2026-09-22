@@ -4,8 +4,8 @@ import { getNavTopics, IT_TOPIC_SLUGS } from "@/lib/topic-config";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isMissingSchemaError } from "@/lib/db-errors";
 
-/** /sitemap.xml */
-export const revalidate = 3600;
+/** /sitemap.xml — canonical GSC sitemap */
+export const revalidate = 60;
 
 function lastMod(iso: string | null | undefined): Date | undefined {
   if (!iso) return undefined;
