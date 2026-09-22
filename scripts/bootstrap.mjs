@@ -199,7 +199,12 @@ async function main() {
       userId = created.user.id;
       console.log(`✓ Created admin user: ${adminEmail}`);
     } else {
-      console.log(`✓ Admin user exists: ${adminEmail}`);
+      const { error } = await supabase.auth.admin.updateUserById(userId, {
+        password: adminPassword,
+        email_confirm: true,
+      });
+      if (error) throw error;
+      console.log(`✓ Admin password refreshed: ${adminEmail}`);
     }
 
     const { error: adminErr } = await supabase

@@ -1,19 +1,18 @@
 import { after } from "next/server";
 import { NextResponse } from "next/server";
-import {
-  persistSiteAnalyticsRow,
-  prepareSiteAnalyticsEvent,
-} from "@/lib/site-analytics/ingest";
+import { prepareSiteAnalyticsEvent } from "@/lib/site-analytics/prepare";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/** Prefer Mumbai / Singapore for IN readers — lower TTFB on the beacon. */
+export const preferredRegion = ["bom1", "sin1"];
 
 /**
- * Respond in ~few ms after validation; DB write continues via after().
- * Client uses sendBeacon — does not wait for insert RTT.
+ * Validate in-process, return 204 immediately.
+ * Supabase insert loads in a separate chunk via after() — client never waits on DB RTT.
  */
 export async function POST(request: Request) {
-  let body: Record<string, unknown> = {};
+  let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
@@ -28,12 +27,18 @@ export async function POST(request: Request) {
     );
   }
 
-  after(() => persistSiteAnalyticsRow(prepared));
+  after(async () => {
+    const { persistSiteAnalyticsRow } = await import(
+      "@/lib/site-analytics/persist"
+    );
+    await persistSiteAnalyticsRow(prepared);
+  });
 
   return new NextResponse(null, {
     status: 204,
     headers: {
       "Cache-Control": "no-store",
+      Connection: "close",
     },
   });
 }
