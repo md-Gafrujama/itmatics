@@ -101,7 +101,8 @@ export default function PrivacyPage() {
               </p>
               <p>
                 Analytics event retention is minimized to about{" "}
-                <strong>180 days</strong>, after which records are deleted.
+                <strong>180 days</strong>. Older rows are deleted by a scheduled
+                cleanup job (equivalent to a TTL of ~15,552,000 seconds).
               </p>
             </article>
 

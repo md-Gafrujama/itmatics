@@ -67,6 +67,8 @@ create index if not exists idx_site_analytics_session
   on public.site_analytics_events (session_id);
 create index if not exists idx_site_analytics_path
   on public.site_analytics_events (path);
+create index if not exists idx_site_analytics_utm_source
+  on public.site_analytics_events ((marketing_meta->>'utmSource'));
 
 alter table public.site_analytics_events enable row level security;
 
@@ -76,7 +78,9 @@ create policy "site_analytics_events_admin_select" on public.site_analytics_even
 
 -- Inserts go through service-role API only
 
--- Retention cleanup helper (~180 days). Schedule via pg_cron or Vercel cron if desired.
+-- Retention (~180 days / 15552000s Mongo TTL equivalent):
+-- 1) cleanup_site_analytics_events() below (manual / pg_cron)
+-- 2) Vercel cron GET /api/cron/cleanup-analytics weekly (Bearer CRON_SECRET)
 create or replace function public.cleanup_site_analytics_events()
 returns integer
 language plpgsql
@@ -87,11 +91,11 @@ declare
   deleted_count integer;
 begin
   delete from public.site_analytics_events
-  where created_at < now() - interval '180 days';
+    where created_at < now() - interval '180 days';
   get diagnostics deleted_count = row_count;
 
   delete from public.consent_events
-  where created_at < now() - interval '180 days';
+    where created_at < now() - interval '180 days';
 
   return deleted_count;
 end;
