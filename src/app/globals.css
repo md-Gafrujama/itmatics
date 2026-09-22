@@ -7128,9 +7128,9 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 14px 18px;
-  background: var(--surface);
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
+  background: #0c1622;
+  color: #fff;
+  border-bottom: 0;
 }
 
 .cookie-kicker {
@@ -7139,13 +7139,13 @@ body {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--cobalt-ink);
+  color: #c9a227;
   margin-bottom: 4px;
 }
 
 .cookie-panel-head h2 {
   margin: 0;
-  color: var(--ink);
+  color: #fff;
   font-size: 1.25rem;
   font-weight: 600;
   font-family: var(--font-display), system-ui, sans-serif;
@@ -7155,7 +7155,7 @@ body {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 22px;
   line-height: 1;
   cursor: pointer;
@@ -7163,11 +7163,12 @@ body {
 }
 
 .cookie-close:hover {
-  color: var(--ink);
+  color: #fff;
 }
 
 .cookie-panel-body {
   padding: 16px 18px 18px;
+  background: #f4f5f2;
 }
 
 .cookie-panel-body > p {
@@ -7193,11 +7194,48 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .cookie-actions .btn {
   font-size: 13px;
   padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+/* Primary: Accept all / Save */
+.cookie-actions .btn-primary,
+.cookie-actions .btn-solid {
+  background: var(--cobalt);
+  color: #fff;
+  border-color: var(--cobalt);
+}
+
+.cookie-actions .btn-primary:hover,
+.cookie-actions .btn-solid:hover {
+  background: var(--cobalt-ink);
+  color: #fff;
+  border-color: var(--cobalt-ink);
+}
+
+/* Secondary: Reject + Customize — visible on light panel (not white-on-white) */
+.cookie-actions .btn-ghost {
+  background: #fff;
+  color: var(--cobalt);
+  border-color: var(--line);
+}
+
+.cookie-actions .btn-ghost:hover {
+  background: rgba(31, 71, 255, 0.08);
+  border-color: var(--cobalt);
+  color: var(--cobalt-ink);
 }
 
 .cookie-toggles {
@@ -7215,7 +7253,7 @@ body {
   padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--r);
-  background: var(--surface);
+  background: #fff;
 }
 
 .cookie-toggle-copy {
