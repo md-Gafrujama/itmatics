@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SUBSCRIBED_KEY, submitSubscribe } from "@/lib/subscribe-client";
 
 function PulseIcon({ live = false }: { live?: boolean }) {
   return (
@@ -17,8 +18,9 @@ export default function SubscribeModal() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("Get the resource");
   const [description, setDescription] = useState(
-    "Tell us where to send it. You will also get The Download, our weekday newsletter for enterprise IT leaders.",
+    "Tell us where to send it. You will also get our free weekday newsletter for enterprise IT leaders.",
   );
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -26,12 +28,12 @@ export default function SubscribeModal() {
       if (detail?.title) {
         setTitle(detail.title);
         setDescription(
-          "Tell us where to send it. You will also get The Download, our weekday newsletter for enterprise IT leaders.",
+          "Tell us where to send it. You will also get our free weekday newsletter for enterprise IT leaders.",
         );
       } else {
-        setTitle("Sign up for The Download");
+        setTitle("Subscribe to ITmatics News");
         setDescription(
-          "The weekday newsletter IT leaders read before the first meeting. Free.",
+          "The weekday newsletter IT leaders read before the first meeting. Just your work email. Free.",
         );
       }
       setOpen(true);
@@ -66,13 +68,24 @@ export default function SubscribeModal() {
       window.alert("Enter a valid work email");
       return;
     }
-    form.reset();
-    setOpen(false);
-    window.dispatchEvent(
-      new CustomEvent("itmatics:toast", {
-        detail: { message: "Sent. Watch your inbox in the next few minutes." },
-      }),
-    );
+    setSaving(true);
+    submitSubscribe({ email, source: "modal" })
+      .then(() => {
+        try {
+          window.localStorage.setItem(SUBSCRIBED_KEY, "1");
+        } catch {
+          // ignore
+        }
+        form.reset();
+        setOpen(false);
+        window.dispatchEvent(
+          new CustomEvent("itmatics:toast", {
+            detail: { message: "Subscribed. Watch your inbox weekday mornings." },
+          }),
+        );
+      })
+      .catch(() => window.alert("Could not subscribe. Try again."))
+      .finally(() => setSaving(false));
   };
 
   if (!open) return null;
@@ -124,8 +137,8 @@ export default function SubscribeModal() {
             required
             autoComplete="email"
           />
-          <button className="modal-submit" type="submit">
-            Subscribe free
+          <button className="modal-submit" type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Subscribe now"}
           </button>
           <p className="modal-fine">
             Free. Unsubscribe anytime. We only send the weekday brief.

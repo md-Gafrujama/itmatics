@@ -119,8 +119,8 @@ export default function HomeLatestGrid({
                   One email each morning: the enterprise-IT stories that will
                   come up in your next leadership meeting, in five minutes.
                 </p>
-                <Link className="btn btn-primary" href="/newsletters">
-                  Get the briefing
+                <Link className="btn btn-primary" href="/newsletters#subscribe">
+                  Subscribe now
                 </Link>
               </div>
             </div>

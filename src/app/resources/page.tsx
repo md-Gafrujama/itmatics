@@ -63,8 +63,8 @@ export default function Page() {
               free with a quick registration.
             </p>
             <div className="spage-actions">
-              <Link href="/newsletters" className="btn btn-primary">
-                Subscribe free
+              <Link href="/newsletters#subscribe" className="btn btn-primary">
+                Subscribe now
               </Link>
             </div>
           </div>

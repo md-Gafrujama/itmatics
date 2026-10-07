@@ -85,7 +85,21 @@ export default function ClientEffects() {
     };
     modalButtons.forEach((btn) => btn.addEventListener("click", openModal));
 
+    const focusSubscribe = () => {
+      if (window.location.hash !== "#subscribe") return;
+      const input = document.querySelector<HTMLInputElement>(
+        '#subscribe input[type="email"]',
+      );
+      if (!input) return;
+      input.scrollIntoView({ block: "center" });
+      input.focus({ preventScroll: true });
+    };
+    const focusTimer = window.setTimeout(focusSubscribe, 60);
+    window.addEventListener("hashchange", focusSubscribe);
+
     return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("hashchange", focusSubscribe);
       io.disconnect();
       forms.forEach((f) => f.removeEventListener("submit", onSubmit));
       modalButtons.forEach((btn) => btn.removeEventListener("click", openModal));

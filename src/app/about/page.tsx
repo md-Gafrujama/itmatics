@@ -68,8 +68,8 @@ export default function Page() {
               technology - clear reporting, honest analysis, no vendor noise.
             </p>
             <div className="about-hero-actions">
-              <Link href="/newsletters" className="btn btn-primary">
-                Get The Download
+              <Link href="/newsletters#subscribe" className="btn btn-primary">
+                Subscribe now
               </Link>
               <Link href="#story" className="about-text-link">
                 Our story

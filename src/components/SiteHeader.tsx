@@ -59,8 +59,11 @@ export default function SiteHeader({
             <Link className="mh-link hide-sm" href="/about">
               About
             </Link>
-            <Link className="btn btn-primary btn-subscribe" href="/newsletters">
-              Subscribe
+            <Link
+              className="btn btn-primary btn-subscribe"
+              href="/newsletters#subscribe"
+            >
+              Subscribe now
             </Link>
             <MobileNav currentTopicSlug={currentTopicSlug} />
           </div>

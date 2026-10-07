@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function SubscribeBand({
   id = "subscribe",
-  kicker = "THE DOWNLOAD - DAILY NEWSLETTER",
+  kicker = "ITMATICS NEWS - DAILY NEWSLETTER",
   title = "The enterprise-IT briefing that respects your inbox",
   description = "Reporting and analysis on AI, cloud, security, and data, written for the people who have to make the decision. One email each weekday. No noise.",
   source = "home",
@@ -13,6 +13,8 @@ export default function SubscribeBand({
   description?: string;
   source?: string;
 }) {
+  const inputId = `${id}-email`;
+
   return (
     <section className="subscribe" id={id}>
       <div className="wrap">
@@ -23,42 +25,22 @@ export default function SubscribeBand({
         </div>
         <div>
           <form className="sub-form js-fake-subscribe" data-source={source}>
-            <div className="row">
-              <input
-                type="text"
-                name="firstname"
-                placeholder="First name"
-                aria-label="First name"
-              />
-              <input
-                type="text"
-                name="company"
-                placeholder="Company"
-                aria-label="Company"
-              />
-            </div>
+            <label className="sr-only" htmlFor={inputId}>
+              Work email
+            </label>
             <input
+              id={inputId}
               type="email"
               name="email"
-              placeholder="Work email"
-              aria-label="Work email"
+              placeholder="you@company.com"
+              autoComplete="email"
               required
             />
-            <select name="role" aria-label="Your role" defaultValue="">
-              <option value="">Your role (optional)</option>
-              <option>CIO / IT Director</option>
-              <option>CISO / Security Leader</option>
-              <option>Enterprise Architect</option>
-              <option>Engineering / Platform Lead</option>
-              <option>Data / Analytics Leader</option>
-              <option>Other</option>
-            </select>
             <button className="btn btn-primary" type="submit">
-              Subscribe free
+              Subscribe now
             </button>
             <p className="sub-note mono">
-              By subscribing you agree to receive The Download and occasional
-              partner briefings. Unsubscribe anytime. See our{" "}
+              Free, one email each weekday. Unsubscribe anytime. See our{" "}
               <Link href="/privacy">privacy notice</Link>.
             </p>
           </form>

@@ -112,11 +112,11 @@ export default function MobileNav({
               </Link>
             </nav>
             <Link
-              href="/newsletters"
+              href="/newsletters#subscribe"
               className="mnav-cta"
               onClick={() => setOpen(false)}
             >
-              Subscribe
+              Subscribe now
             </Link>
           </aside>
         </div>,

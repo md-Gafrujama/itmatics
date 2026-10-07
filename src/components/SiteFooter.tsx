@@ -32,7 +32,7 @@ export default function SiteFooter() {
               required
             />
             <button type="submit" className="btn btn-primary">
-              Subscribe free
+              Subscribe now
             </button>
           </form>
         </div>

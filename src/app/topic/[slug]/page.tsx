@@ -227,7 +227,7 @@ export default async function TopicPage({
                   Subscribe to get the first briefing when it publishes.
                 </p>
                 <a href="#subscribe" className="btn btn-primary">
-                  Subscribe free
+                  Subscribe now
                 </a>
               </div>
             )}

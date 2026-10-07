@@ -9,9 +9,9 @@ import type { ArticleWithTopic } from "@/types/database";
 import type { TopicConfig } from "@/lib/topic-config";
 
 export const metadata: Metadata = {
-  title: "Newsletters",
+  title: "Subscribe",
   description:
-    "The Download - weekday ITmatics briefing across AI, Cloud, Security, Data & Analytics, IT Leadership, Digital Transformation, and Infrastructure. Free.",
+    "Subscribe to ITmatics News - a free weekday email across AI, Cloud, Security, Data & Analytics, IT Leadership, Digital Transformation, and Infrastructure. Just your work email.",
 };
 
 export const revalidate = 300;
@@ -53,64 +53,42 @@ export default async function Page() {
           <div className="spage-hero-bg" aria-hidden />
           <div className="wrap spage-hero-inner spage-hero-inner--split">
             <div>
-              <p className="spage-eyebrow mono">The Download</p>
-              <h1>Enterprise IT, five minutes a day</h1>
+              <p className="spage-eyebrow mono">Newsletter</p>
+              <h1>Subscribe to ITmatics News</h1>
               <p className="spage-lead">
-                One weekday email covering all seven ITmatics desks in short:
-                Artificial Intelligence on adoption and governance; Cloud on
-                hybrid strategy and cost; Security on identity and resilience;
-                Data &amp; Analytics on platforms leaders can trust; IT
-                Leadership on strategy and operating models; Digital
-                Transformation on change that sticks; and Infrastructure on the
-                systems that keep enterprise IT running.
+                Enterprise IT in five minutes a day. Get one free weekday email
+                with the latest story from each of our seven desks: AI, Cloud,
+                Security, Data &amp; Analytics, IT Leadership, Digital
+                Transformation, and Infrastructure.
               </p>
               <ul className="spage-checklist">
-                <li>Weekday mornings, built for leadership calendars</li>
-                <li>One latest story from each of our seven desks</li>
-                <li>Unsubscribe anytime. We do not sell your address</li>
+                <li>Just your work email. No long forms</li>
+                <li>Lands weekday mornings, built for leadership calendars</li>
+                <li>Unsubscribe anytime. We never sell your address</li>
               </ul>
             </div>
             <form
               id="subscribe"
-              className="spage-form js-fake-subscribe"
+              className="spage-form spage-form--subscribe js-fake-subscribe"
               data-source="newsletters"
             >
-              <p className="spage-form-kicker mono">Subscribe free</p>
-              <div className="row">
-                <input
-                  type="text"
-                  name="firstname"
-                  placeholder="First name"
-                  aria-label="First name"
-                />
-                <input
-                  type="text"
-                  name="company"
-                  placeholder="Company"
-                  aria-label="Company"
-                />
-              </div>
+              <p className="spage-form-kicker mono">Subscribe now</p>
+              <label className="sr-only" htmlFor="nl-email">
+                Work email
+              </label>
               <input
+                id="nl-email"
                 type="email"
                 name="email"
-                placeholder="Work email"
-                aria-label="Work email"
+                placeholder="you@company.com"
+                autoComplete="email"
                 required
               />
-              <select name="role" aria-label="Your role" defaultValue="">
-                <option value="">Your role (optional)</option>
-                <option>CIO / IT Director</option>
-                <option>CISO / Security Leader</option>
-                <option>Enterprise Architect</option>
-                <option>Engineering / Platform Lead</option>
-                <option>Data / Analytics Leader</option>
-                <option>Other</option>
-              </select>
               <button className="btn btn-primary" type="submit">
-                Get The Download
+                Subscribe now
               </button>
               <p className="spage-form-note mono">
-                By subscribing you agree to receive The Download. See our{" "}
+                Free, one email each weekday. See our{" "}
                 <Link href="/privacy">privacy notice</Link>.
               </p>
             </form>
@@ -221,12 +199,12 @@ export default async function Page() {
               <p className="spage-eyebrow mono">Ready?</p>
               <h2>Get all seven desks in one email</h2>
               <p>
-                From AI pilots to infrastructure uptime - The Download lands
+                From AI pilots to infrastructure uptime - ITmatics News lands
                 weekday mornings for the people who run enterprise technology.
               </p>
             </div>
             <a href="#subscribe" className="btn btn-primary">
-              Subscribe free
+              Subscribe now
             </a>
           </div>
         </section>

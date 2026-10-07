@@ -41,7 +41,7 @@ export default function TopicNewsletterBand({
               required
             />
             <button className="btn-sub" type="submit">
-              Subscribe
+              Subscribe now
             </button>
           </form>
           <p className="news-note">
