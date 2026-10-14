@@ -50,7 +50,7 @@ export default function SiteFooter() {
               <span className="mono">Follow</span>
               <div className="social">
                 <a
-                  href="https://www.linkedin.com"
+                  href="https://www.linkedin.com/showcase/itmatics/posts/"
                   aria-label="LinkedIn"
                   rel="noopener noreferrer"
                   target="_blank"

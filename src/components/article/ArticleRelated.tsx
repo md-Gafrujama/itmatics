@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
+import { formatStoryDate } from "@/lib/topic-stories";
 import type { ArticleWithTopic } from "@/types/database";
 
 export default function ArticleRelated({
@@ -53,6 +54,9 @@ export default function ArticleRelated({
               <div className="art-related-copy">
                 <span className="art-related-meta mono">
                   {article.topic?.name ?? "News"}
+                  {formatStoryDate(article.published_at ?? article.created_at)
+                    ? ` · ${formatStoryDate(article.published_at ?? article.created_at)}`
+                    : ""}
                   {" · "}
                   {article.read_time_minutes ?? 5} min
                 </span>

@@ -1,15 +1,22 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { storyHref } from "@/lib/story-link";
-import type { TopicStory } from "@/lib/topic-stories";
+import { formatStoryDate, type TopicStory } from "@/lib/topic-stories";
 
 function formatByline(story: TopicStory, opts?: { short?: boolean }) {
+  const date = formatStoryDate(story.publishedAt);
   if (opts?.short) {
-    return `By ${story.authorName}`;
+    return date ? `By ${story.authorName} · ${date}` : `By ${story.authorName}`;
   }
   return (
     <>
       By <b>{story.authorName}</b>
+      {date ? (
+        <>
+          {" · "}
+          {date}
+        </>
+      ) : null}
       {" · "}
       {story.readMinutes} min read
     </>

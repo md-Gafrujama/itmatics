@@ -1,7 +1,7 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { storyHref } from "@/lib/story-link";
-import type { TopicStory } from "@/lib/topic-stories";
+import { formatStoryDate, type TopicStory } from "@/lib/topic-stories";
 
 export default function HomeLatestGrid({
   stories,
@@ -51,7 +51,12 @@ export default function HomeLatestGrid({
                   </h3>
                   <p className="dek">{featured.dek}</p>
                   <p className="byline mono">
-                    By <b>{featured.authorName}</b> / {featured.readMinutes} min
+                    By <b>{featured.authorName}</b>
+                    {formatStoryDate(featured.publishedAt)
+                      ? ` · ${formatStoryDate(featured.publishedAt)}`
+                      : ""}
+                    {" · "}
+                    {featured.readMinutes} min
                   </p>
                 </div>
               </article>
@@ -79,7 +84,12 @@ export default function HomeLatestGrid({
                   </h3>
                   <p className="dek">{story.dek}</p>
                   <p className="byline mono">
-                    By <b>{story.authorName}</b> / {story.readMinutes} min
+                    By <b>{story.authorName}</b>
+                    {formatStoryDate(story.publishedAt)
+                      ? ` · ${formatStoryDate(story.publishedAt)}`
+                      : ""}
+                    {" · "}
+                    {story.readMinutes} min
                   </p>
                 </div>
               </article>
@@ -102,6 +112,9 @@ export default function HomeLatestGrid({
                         </h4>
                         <span className="byline mono">
                           By {story.authorName}
+                          {formatStoryDate(story.publishedAt)
+                            ? ` · ${formatStoryDate(story.publishedAt)}`
+                            : ""}
                         </span>
                       </div>
                     </li>

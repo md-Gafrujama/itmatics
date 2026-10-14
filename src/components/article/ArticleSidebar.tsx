@@ -4,6 +4,7 @@ import { useId, useRef, useState } from "react";
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { SUBSCRIBED_KEY, submitSubscribe } from "@/lib/subscribe-client";
+import { formatStoryDate } from "@/lib/topic-stories";
 import type { ArticleWithTopic } from "@/types/database";
 
 export default function ArticleSidebar({
@@ -96,6 +97,9 @@ export default function ArticleSidebar({
                   </span>
                   <span className="art-rail-copy">
                     <span className="art-rail-meta mono">
+                      {formatStoryDate(story.published_at ?? story.created_at)
+                        ? `${formatStoryDate(story.published_at ?? story.created_at)} · `
+                        : ""}
                       {story.read_time_minutes ?? 5} min read
                     </span>
                     <span className="art-rail-title">{story.title}</span>

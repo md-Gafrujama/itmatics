@@ -7,6 +7,14 @@ import { revalidatePath } from "next/cache";
  */
 export const PRODUCTION_SITE_URL = "https://www.itmaticsnews.com";
 
+export const ITMATICS_LINKEDIN_URL =
+  "https://www.linkedin.com/showcase/itmatics/posts/";
+
+/** LinkedIn share dialog — crawls the public article URL for the preview card. */
+export function linkedInShareUrl(pageUrl: string) {
+  return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(pageUrl)}`;
+}
+
 function isLocalhostUrl(url: string): boolean {
   return /localhost|127\.0\.0\.1/i.test(url);
 }

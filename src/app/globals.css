@@ -5299,6 +5299,38 @@ body {
   color: #8a94a0;
 }
 
+.article-page .li-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.article-page .li-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #0a66c2;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  padding: 10px 16px 10px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
+.article-page .li-btn:hover {
+  background: #004182;
+  color: #fff;
+}
+
+.article-page .li-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .article-page .article-figure {
   margin: 0 0 28px;
 }

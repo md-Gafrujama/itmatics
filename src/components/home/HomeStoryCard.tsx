@@ -1,7 +1,7 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { storyHref } from "@/lib/story-link";
-import type { TopicStory } from "@/lib/topic-stories";
+import { formatStoryDate, type TopicStory } from "@/lib/topic-stories";
 
 export default function HomeStoryCard({ story }: { story: TopicStory }) {
   const href = storyHref(story);
@@ -19,7 +19,12 @@ export default function HomeStoryCard({ story }: { story: TopicStory }) {
       </Link>
       <div className="hr-story-copy">
         <span className="hr-story-meta">
-          {story.topicName} · {story.readMinutes} min
+          {story.topicName}
+          {formatStoryDate(story.publishedAt)
+            ? ` · ${formatStoryDate(story.publishedAt)}`
+            : ""}
+          {" · "}
+          {story.readMinutes} min
         </span>
         <h3>
           <Link href={href}>{story.title}</Link>

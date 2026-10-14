@@ -8,6 +8,7 @@ export type TopicStory = {
   dek: string;
   category: string;
   readMinutes: number;
+  publishedAt: string | null;
   authorName: string;
   topicSlug: string;
   topicName: string;
@@ -24,12 +25,24 @@ export function articleToStory(article: ArticleWithTopic): TopicStory {
     dek: article.dek,
     category: article.topic?.name ?? "Story",
     readMinutes: article.read_time_minutes ?? 5,
+    publishedAt: article.published_at ?? article.created_at,
     authorName: article.author_name,
     topicSlug: article.topic?.slug ?? "",
     topicName: article.topic?.name ?? "",
     coverImageUrl: article.cover_image_url,
     coverImageAlt: article.cover_image_alt,
   };
+}
+
+export function formatStoryDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
 }
 
 export function articlesToStories(articles: ArticleWithTopic[]): TopicStory[] {

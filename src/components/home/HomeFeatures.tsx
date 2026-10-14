@@ -1,7 +1,7 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { storyHref } from "@/lib/story-link";
-import type { TopicStory } from "@/lib/topic-stories";
+import { formatStoryDate, type TopicStory } from "@/lib/topic-stories";
 
 export default function HomeFeatures({ stories }: { stories: TopicStory[] }) {
   if (stories.length === 0) return null;
@@ -38,7 +38,12 @@ export default function HomeFeatures({ stories }: { stories: TopicStory[] }) {
               </h3>
               <p className="dek">{story.dek}</p>
               <p className="byline mono" style={{ marginTop: 10 }}>
-                By {story.authorName} / {story.readMinutes} min
+                By {story.authorName}
+                {formatStoryDate(story.publishedAt)
+                  ? ` · ${formatStoryDate(story.publishedAt)}`
+                  : ""}
+                {" · "}
+                {story.readMinutes} min
               </p>
             </article>
           ))}

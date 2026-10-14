@@ -1,7 +1,7 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { storyHref } from "@/lib/story-link";
-import type { TopicStory } from "@/lib/topic-stories";
+import { formatStoryDate, type TopicStory } from "@/lib/topic-stories";
 
 export default function FeaturedStory({ story }: { story: TopicStory }) {
   const href = storyHref(story);
@@ -26,6 +26,10 @@ export default function FeaturedStory({ story }: { story: TopicStory }) {
         <div className="byline">
           <span>By {story.authorName}</span>
           <span className="dot" />
+          {formatStoryDate(story.publishedAt) ? (
+            <span>{formatStoryDate(story.publishedAt)}</span>
+          ) : null}
+          {formatStoryDate(story.publishedAt) ? <span className="dot" /> : null}
           <span>{story.readMinutes} min read</span>
         </div>
         <Link href={href} className="topic-lead-link">

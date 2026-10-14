@@ -16,7 +16,12 @@ import {
   getLatestArticles,
 } from "@/lib/articles";
 import { parseKeywordList, hydrateArticleSeo } from "@/lib/seo";
-import { getSiteUrl } from "@/lib/site";
+import {
+  getSiteUrl,
+  ITMATICS_LINKEDIN_URL,
+  linkedInShareUrl,
+  PRODUCTION_SITE_URL,
+} from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -114,6 +119,10 @@ export default async function ArticlePage({
   ).slice(0, 6);
 
   const siteUrl = getSiteUrl();
+  const shareUrl = `${PRODUCTION_SITE_URL}/article/${article.slug}`;
+  const publishedLabel = formatDateLong(
+    article.published_at ?? article.created_at,
+  );
   const seo = hydrateArticleSeo(article, article.topic?.name);
   const topicSlug = article.topic?.slug ?? "";
   const takeaways = article.body_json.takeaways ?? [];
@@ -190,11 +199,31 @@ export default async function ArticlePage({
                   <div className="who">
                     <b>{article.author_name}</b>
                     <span className="byline mono">
-                      {formatDateLong(article.published_at)}
-                      {" · "}
+                      {publishedLabel ? `Published ${publishedLabel}` : ""}
+                      {publishedLabel ? " · " : ""}
                       {article.read_time_minutes ?? 5} min read
                     </span>
                   </div>
+                </div>
+                <div className="li-actions">
+                  <a
+                    className="li-btn"
+                    href={linkedInShareUrl(shareUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <LinkedInMark />
+                    Share on LinkedIn
+                  </a>
+                  <a
+                    className="li-btn"
+                    href={ITMATICS_LINKEDIN_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <LinkedInMark />
+                    ITmatics on LinkedIn
+                  </a>
                 </div>
               </header>
 
@@ -261,5 +290,16 @@ export default async function ArticlePage({
       />
       <SiteFooter />
     </>
+  );
+}
+
+function LinkedInMark() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0z"
+      />
+    </svg>
   );
 }

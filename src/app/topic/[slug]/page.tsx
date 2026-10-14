@@ -8,7 +8,11 @@ import SubscribeBand from "@/components/SubscribeBand";
 import { getTopicConfig, getNavTopics } from "@/lib/topic-config";
 import { getTopicBySlug } from "@/lib/topics";
 import { getArticlesByTopicSlug } from "@/lib/articles";
-import { articlesToStories, syntheticTopic } from "@/lib/topic-stories";
+import {
+  articlesToStories,
+  formatStoryDate,
+  syntheticTopic,
+} from "@/lib/topic-stories";
 import { storyHref } from "@/lib/story-link";
 
 export const revalidate = 300;
@@ -146,6 +150,9 @@ export default async function TopicPage({
                     <p>{lead.dek}</p>
                     <p className="tp-meta mono">
                       By {lead.authorName}
+                      {formatStoryDate(lead.publishedAt)
+                        ? ` · ${formatStoryDate(lead.publishedAt)}`
+                        : ""}
                       {" · "}
                       {lead.readMinutes} min read
                     </p>
@@ -201,6 +208,9 @@ export default async function TopicPage({
                             <p>{story.dek}</p>
                             <p className="tp-meta mono">
                               By {story.authorName}
+                              {formatStoryDate(story.publishedAt)
+                                ? ` · ${formatStoryDate(story.publishedAt)}`
+                                : ""}
                               {" · "}
                               {story.readMinutes} min read
                             </p>
