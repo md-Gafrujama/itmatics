@@ -5300,35 +5300,70 @@ body {
 }
 
 .article-page .li-actions {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   margin: 0 0 22px;
 }
 
-.article-page .li-btn {
+.article-page .li-icon {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: #0a66c2;
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1;
-  padding: 10px 16px 10px 12px;
-  border-radius: 999px;
+  justify-content: center;
+  color: #56636f;
+  background: #fff;
   text-decoration: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  box-shadow: 0 1px 2px rgba(12, 22, 34, 0.04);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.article-page .li-btn:hover {
-  background: #004182;
+.article-page .li-icon:hover {
+  color: var(--ink);
+  border-color: #c9d0d8;
+  background: #f4f5f2;
+}
+
+.article-page .li-icon--share {
+  color: #0a66c2;
+  border-color: #9fc0e4;
+  background: #f3f8fc;
+}
+
+.article-page .li-icon--share:hover {
+  color: #004182;
+  border-color: #0a66c2;
+  background: #e8f1fa;
+}
+
+.article-page .li-icon--linkedin {
   color: #fff;
+  border-color: #0a66c2;
+  background: #0a66c2;
+  box-shadow: 0 1px 2px rgba(10, 102, 194, 0.28);
 }
 
-.article-page .li-btn svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
+.article-page .li-icon--linkedin:hover {
+  color: #fff;
+  border-color: #004182;
+  background: #004182;
+}
+
+.article-page .li-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .article-page .article-figure {
