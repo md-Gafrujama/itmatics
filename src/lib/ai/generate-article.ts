@@ -7,6 +7,18 @@ import { SEO_LIMITS, clampGeneratedSeoFields, clampToLimit } from "@/lib/seo";
 import { getTopicConfig } from "@/lib/topic-config";
 
 const MODEL = "claude-sonnet-4-6";
+
+/**
+ * Basic search rather than web_search_20260209: dynamic filtering took 148s for
+ * research against 35s here, and research + writing must fit inside the
+ * cron route's 300s limit.
+ */
+const RESEARCH_SEARCH_TOOL = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 3,
+} as const;
+
 const HOUSE_STYLE = `HOUSE STYLE:
 - Never use em dashes (${"\u2014"}) or en dashes (${"\u2013"}). Use only the short hyphen "-" (with spaces when needed), or rewrite as two sentences.
 - Example good: "AI, cloud, and security - written for IT leaders." Example bad: any long dash character.`;
@@ -249,7 +261,7 @@ Keep the brief under 550 words.`,
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 4096,
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
+      tools: [RESEARCH_SEARCH_TOOL],
       messages,
     });
 
@@ -344,7 +356,7 @@ Keep the brief under 550 words.`,
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 4096,
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }],
+      tools: [RESEARCH_SEARCH_TOOL],
       messages,
     });
 
