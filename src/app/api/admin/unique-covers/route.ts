@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
+import { requireAdminApi } from "@/lib/admin-auth";
+import { hasValidCronSecret } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { pexelsPhotoKey, searchPexelsPhoto } from "@/lib/ai/pexels";
+import { findUniquePhoto, pexelsPhotoKey } from "@/lib/ai/pexels";
 import { revalidateSitemap } from "@/lib/site";
 
 export const maxDuration = 300;
@@ -12,16 +13,11 @@ export const maxDuration = 300;
  * Without force, only missing/duplicate covers are fixed.
  */
 export async function POST(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronOk = authHeader === `Bearer ${process.env.CRON_SECRET}`;
-
-  if (!cronOk) {
-    const supabaseAuth = await createClient();
-    const {
-      data: { user },
-    } = await supabaseAuth.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasValidCronSecret(request)) {
+    const auth = await requireAdminApi(request);
+    if (auth.error) {
+      const status = auth.error === "Forbidden" ? 403 : 401;
+      return NextResponse.json({ error: auth.error }, { status });
     }
   }
 
@@ -43,33 +39,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const used = new Set<string>();
   const updates: { id: string; slug: string; reason: string }[] = [];
   const skipped: string[] = [];
   const failed: { slug: string; error: string }[] = [];
 
-  // When not forcing, seed `used` with covers we will keep so replacements
-  // don't collide with already-unique images.
-  if (!force) {
-    for (const article of articles ?? []) {
-      const key = pexelsPhotoKey(article.cover_image_url);
-      if (!key) continue;
-      // First occurrence of each key is "kept"; later ones are duplicates.
-      if (!used.has(key)) used.add(key);
-    }
-    // Rebuild: we'll re-walk and only replace missing/dupes. Clear and
-    // track properly in the loop instead.
-    used.clear();
+  // Every existing cover is off limits, including ones later in the walk, so a
+  // replacement can't collide with a cover that hasn't been reached yet.
+  const used = new Set<string>();
+  for (const article of articles ?? []) {
+    const key = pexelsPhotoKey(article.cover_image_url);
+    if (key) used.add(key);
   }
 
+  const seen = new Set<string>();
   for (const article of articles ?? []) {
     const key = pexelsPhotoKey(article.cover_image_url);
     const missing = !article.cover_image_url;
-    const duplicate = !!(key && used.has(key));
+    const duplicate = !!(key && seen.has(key));
     const needsNew = force || missing || duplicate;
+    if (key) seen.add(key);
 
     if (!needsNew && key) {
-      used.add(key);
       skipped.push(article.slug);
       continue;
     }
@@ -91,24 +81,15 @@ export async function POST(request: Request) {
       "modern enterprise technology office",
     ].filter((q) => q.length > 3);
 
-    let image = null;
-    let lastErr: unknown = null;
-
-    for (const query of queries) {
-      try {
-        image = await searchPexelsPhoto(query, {
-          excludeKeys: used,
-          pageSalt: `${article.slug}-${query}`,
-        });
-        if (image) break;
-      } catch (err) {
-        lastErr = err;
-      }
-    }
+    const { image, lastError: lastErr } = await findUniquePhoto(queries, {
+      excludeKeys: used,
+      pageSalt: article.slug,
+    });
 
     if (!image) {
-      if (force || duplicate) {
-        await supabase
+      // A Pexels outage says nothing about the current cover, so keep it.
+      if ((force || duplicate) && !lastErr) {
+        const { error: clearError } = await supabase
           .from("articles")
           .update({
             cover_image_url: null,
@@ -117,6 +98,10 @@ export async function POST(request: Request) {
             cover_image_credit_url: null,
           })
           .eq("id", article.id);
+        if (clearError) {
+          failed.push({ slug: article.slug, error: clearError.message });
+          continue;
+        }
         updates.push({
           id: article.id,
           slug: article.slug,
@@ -134,7 +119,7 @@ export async function POST(request: Request) {
     used.add(newKey);
     used.add(String(image.photoId));
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("articles")
       .update({
         cover_image_url: image.url,
@@ -143,6 +128,11 @@ export async function POST(request: Request) {
         cover_image_credit_url: image.photographerUrl,
       })
       .eq("id", article.id);
+
+    if (updateError) {
+      failed.push({ slug: article.slug, error: updateError.message });
+      continue;
+    }
 
     updates.push({
       id: article.id,

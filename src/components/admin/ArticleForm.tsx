@@ -101,9 +101,9 @@ export default function ArticleForm({
     if (!pexelsQuery.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(
-        `/api/admin/pexels-search?q=${encodeURIComponent(pexelsQuery)}`,
-      );
+      const params = new URLSearchParams({ q: pexelsQuery });
+      if (article?.id) params.set("article_id", article.id);
+      const res = await fetch(`/api/admin/pexels-search?${params}`);
       const data = await res.json();
       setPexelsResults(data.photos ?? []);
     } finally {

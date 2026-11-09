@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { usedCoverKeys } from "@/lib/ai/pexels";
 import { createClient } from "@/lib/supabase/server";
 
 interface PexelsPhoto {
@@ -43,7 +44,15 @@ export async function GET(request: Request) {
   }
 
   const data = (await res.json()) as { photos: PexelsPhoto[] };
-  const photos = data.photos.map((p) => ({
+
+  // Keep this article's own cover selectable when editing it.
+  const used = await usedCoverKeys(
+    supabase,
+    searchParams.get("article_id") ?? undefined,
+  );
+  const unused = data.photos.filter((p) => !used.has(String(p.id)));
+
+  const photos = unused.map((p) => ({
     id: p.id,
     thumbUrl: p.src.medium,
     fullUrl: p.src.large2x ?? p.src.large,

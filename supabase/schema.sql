@@ -44,6 +44,16 @@ create index if not exists articles_status_published_at_idx
   on public.articles (status, published_at desc);
 create index if not exists articles_topic_id_idx on public.articles (topic_id);
 
+-- No two articles may share a cover photo. See supabase/unique-article-covers.sql.
+create unique index if not exists articles_cover_photo_key
+  on public.articles (
+    coalesce(
+      substring(cover_image_url from '/photos/([0-9]+)/'),
+      split_part(cover_image_url, '?', 1)
+    )
+  )
+  where cover_image_url is not null;
+
 -- ---------------------------------------------------------------------------
 -- generation_log - observability for the AI auto-publish cron
 -- ---------------------------------------------------------------------------

@@ -1,4 +1,18 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
+
+const PEXELS_TIMEOUT_MS = 10 * 1000;
+
+/** Unique index from supabase/unique-article-covers.sql. */
+const COVER_UNIQUE_INDEX = "articles_cover_photo_key";
+
+export function isCoverConflict(error: {
+  code?: string;
+  message: string;
+}): boolean {
+  return error.code === "23505" && error.message.includes(COVER_UNIQUE_INDEX);
+}
 
 export interface PexelsPick {
   url: string;
@@ -33,6 +47,50 @@ export function pexelsPhotoKey(url: string | null | undefined): string | null {
   } catch {
     return url.split("?")[0] ?? url;
   }
+}
+
+/**
+ * Throws on a failed read: treating it as "nothing used yet" would let every
+ * photo through as unique.
+ */
+export async function usedCoverKeys(
+  supabase: SupabaseClient<Database>,
+  exceptArticleId?: string,
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from("articles")
+    .select("id, cover_image_url")
+    .not("cover_image_url", "is", null);
+
+  if (error) throw new Error(`Read used covers: ${error.message}`);
+
+  const keys = new Set<string>();
+  for (const row of data ?? []) {
+    if (row.id === exceptArticleId) continue;
+    const key = pexelsPhotoKey(row.cover_image_url);
+    if (key) keys.add(key);
+  }
+  return keys;
+}
+
+/** Tries each query in turn, so one failed or exhausted search doesn't cost the cover. */
+export async function findUniquePhoto(
+  queries: string[],
+  options: { excludeKeys: Iterable<string>; pageSalt: string },
+): Promise<{ image: PexelsPick | null; lastError: unknown }> {
+  let lastError: unknown = null;
+  for (const query of queries) {
+    try {
+      const image = await searchPexelsPhoto(query, {
+        excludeKeys: options.excludeKeys,
+        pageSalt: `${options.pageSalt}-${query}`,
+      });
+      if (image) return { image, lastError: null };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  return { image: null, lastError };
 }
 
 function toPick(photo: PexelsPhoto, fallbackAlt: string): PexelsPick {
@@ -91,6 +149,7 @@ export async function searchPexelsPhoto(
     const res = await fetch(url, {
       headers: { Authorization: apiKey },
       cache: "no-store",
+      signal: AbortSignal.timeout(PEXELS_TIMEOUT_MS),
     });
 
     if (!res.ok) {

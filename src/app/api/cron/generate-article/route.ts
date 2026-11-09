@@ -1,39 +1,40 @@
 import { NextResponse } from "next/server";
+import { hasValidCronSecret, isCronSecretConfigured } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { researchTopic, writeArticleFromBrief } from "@/lib/ai/generate-article";
 import {
-  persistGeneratedArticle,
-  usedCoverKeys,
-} from "@/lib/ai/save-generated";
+  researchTopic,
+  withGenerationDeadline,
+  writeArticleFromBrief,
+} from "@/lib/ai/generate-article";
+import { persistGeneratedArticle } from "@/lib/ai/save-generated";
 import { getHrNavbarTopics, syncHrTopicsToDb } from "@/lib/sync-topics";
 import { HR_NEWS_TOPIC_SLUGS } from "@/lib/topic-config";
+import type { Database } from "@/types/database";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 /**
- * One article takes 3-5 minutes, so a single invocation can only finish one
- * within maxDuration. vercel.json fires this route more than once per scheduled
- * date, and two Vercel projects share this database, so the target is enforced
- * by counting what was already published in the window.
+ * An article can take minutes, so each invocation makes only one to stay inside
+ * maxDuration. vercel.json fires this route more than once per scheduled date,
+ * and two Vercel projects share this database, so the target is enforced by
+ * counting what was already published in the window.
  */
 const ARTICLES_PER_SCHEDULED_DATE = 2;
 const SCHEDULED_WINDOW_MS = 6 * 60 * 60 * 1000;
 
-/** Fail just before maxDuration so a slow run is logged instead of being killed silently. */
-const GENERATION_DEADLINE_MS = 285 * 1000;
-
 type NavbarTopic = { id: string; slug: string; name: string };
+type AdminClient = ReturnType<typeof createAdminClient>;
 
-function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Generation exceeded ${ms / 1000}s and was stopped`)),
-      ms,
-    );
-  });
-  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
+/** A lost log row would hide the run, so the failure must reach the server log. */
+async function logRun(
+  supabase: AdminClient,
+  row: Database["public"]["Tables"]["generation_log"]["Insert"],
+) {
+  const { error } = await supabase.from("generation_log").insert(row);
+  if (error) {
+    console.error("generate-article cron: could not write log:", error.message);
+  }
 }
 
 /** Prefer navbar topics that have fewer published articles (coverage balance). */
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 async function runGenerateCron(request: Request) {
   // These exits happen before the database is reachable or trusted, so the
   // server log is the only place they can be recorded.
-  if (!process.env.CRON_SECRET?.trim()) {
+  if (!isCronSecretConfigured()) {
     console.error("generate-article cron: CRON_SECRET is not configured");
     return NextResponse.json(
       { error: "CRON_SECRET is not configured" },
@@ -78,15 +79,14 @@ async function runGenerateCron(request: Request) {
     );
   }
 
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!hasValidCronSecret(request)) {
     console.warn(
-      `generate-article cron: rejected request (authorization header ${authHeader ? "did not match" : "missing"})`,
+      `generate-article cron: rejected request (authorization header ${request.headers.has("authorization") ? "did not match" : "missing"})`,
     );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let supabase: ReturnType<typeof createAdminClient>;
+  let supabase: AdminClient;
   try {
     supabase = createAdminClient();
   } catch (err) {
@@ -119,6 +119,7 @@ async function runGenerateCron(request: Request) {
         .from("articles")
         .select("id", { count: "exact", head: true })
         .eq("source", "ai")
+        .eq("status", "published")
         .gte(
           "created_at",
           new Date(Date.now() - SCHEDULED_WINDOW_MS).toISOString(),
@@ -144,16 +145,14 @@ async function runGenerateCron(request: Request) {
       throw new Error("No topics found - run supabase/schema.sql seed first");
     }
 
-    const [{ data: recentArticles }, { data: topicCounts }, excludeKeys] =
-      await Promise.all([
-        supabase
-          .from("articles")
-          .select("title")
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase.from("articles").select("topic_id").eq("status", "published"),
-        usedCoverKeys(supabase),
-      ]);
+    const [{ data: recentArticles }, { data: topicCounts }] = await Promise.all([
+      supabase
+        .from("articles")
+        .select("title")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("articles").select("topic_id").eq("status", "published"),
+    ]);
 
     const counts = new Map<string, number>();
     for (const row of topicCounts ?? []) {
@@ -165,30 +164,29 @@ async function runGenerateCron(request: Request) {
     const selectedTopic = pickNavbarTopic(topics, counts, requestedTopicSlug);
     topicSearched = `${selectedTopic.name}: researching trending coverage`;
 
-    const inserted = await withDeadline(
-      (async () => {
-        const researchBrief = await researchTopic(
-          recentTitles,
-          selectedTopic,
-          topics,
-        );
-        const generated = await writeArticleFromBrief(
-          researchBrief,
-          topics.map((t) => t.slug),
-          selectedTopic.slug,
-        );
-        topicSearched = `${selectedTopic.name}: ${generated.title}`;
+    const inserted = await withGenerationDeadline(async (signal) => {
+      const researchBrief = await researchTopic(
+        recentTitles,
+        selectedTopic,
+        topics,
+        signal,
+      );
+      const generated = await writeArticleFromBrief(
+        researchBrief,
+        topics.map((t) => t.slug),
+        selectedTopic.slug,
+        { signal },
+      );
+      topicSearched = `${selectedTopic.name}: ${generated.title}`;
+      signal.throwIfAborted();
 
-        return persistGeneratedArticle(supabase, {
-          generated,
-          topic: selectedTopic,
-          excludeKeys,
-        });
-      })(),
-      GENERATION_DEADLINE_MS,
-    );
+      return persistGeneratedArticle(supabase, {
+        generated,
+        topic: selectedTopic,
+      });
+    });
 
-    await supabase.from("generation_log").insert({
+    await logRun(supabase, {
       topic_searched: topicSearched,
       status: "success",
       article_id: inserted.id,
@@ -201,7 +199,7 @@ async function runGenerateCron(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await supabase.from("generation_log").insert({
+    await logRun(supabase, {
       topic_searched: topicSearched,
       status: "failed",
       error_message: message,

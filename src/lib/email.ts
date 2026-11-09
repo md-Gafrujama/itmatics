@@ -25,6 +25,11 @@ export function getMailer(): Transporter | null {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // Nodemailer's defaults allow minutes per message, which a stuck SMTP
+    // server would spend from the serverless time limit.
+    connectionTimeout: 10 * 1000,
+    greetingTimeout: 10 * 1000,
+    socketTimeout: 20 * 1000,
   });
   return cached;
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasValidCronSecret } from "@/lib/cron-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncHrTopicsToDb } from "@/lib/sync-topics";
 import { HR_TOPICS } from "@/lib/topic-config";
@@ -13,8 +14,7 @@ export const dynamic = "force-dynamic";
  * Authorization: Bearer <CRON_SECRET>
  */
 export async function POST(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!hasValidCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

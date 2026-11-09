@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { pexelsPhotoKey, usedCoverKeys } from "@/lib/ai/pexels";
 import { slugify } from "@/lib/articles";
 import { normalizeDashes, normalizeDashesDeep } from "@/lib/text";
 import {
@@ -84,6 +85,22 @@ function parseBody(formData: FormData): ArticleBody {
   });
 }
 
+/** Catches a pasted URL, which the cover search can't filter. */
+async function assertCoverIsUnused(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  coverUrl: string | null,
+  exceptArticleId?: string,
+) {
+  const key = pexelsPhotoKey(coverUrl);
+  if (!key) return;
+  const used = await usedCoverKeys(supabase, exceptArticleId);
+  if (used.has(key)) {
+    throw new Error(
+      "This cover image is already used by another article. Choose a different one.",
+    );
+  }
+}
+
 function articleFields(formData: FormData) {
   const title = clampToLimit(
     normalizeDashes(String(formData.get("title") ?? "")),
@@ -123,6 +140,7 @@ export async function createArticle(formData: FormData) {
   const supabase = await createClient();
   const fields = articleFields(formData);
   const slug = slugify(String(formData.get("slug") ?? "") || fields.title);
+  await assertCoverIsUnused(supabase, fields.cover_image_url);
 
   const { data: inserted, error } = await supabase
     .from("articles")
@@ -150,6 +168,7 @@ export async function createArticle(formData: FormData) {
 export async function updateArticle(id: string, formData: FormData) {
   const supabase = await createClient();
   const fields = articleFields(formData);
+  await assertCoverIsUnused(supabase, fields.cover_image_url, id);
 
   const { data: existing } = await supabase
     .from("articles")

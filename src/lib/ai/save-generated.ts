@@ -1,11 +1,18 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { slugify } from "@/lib/articles";
-import { pexelsPhotoKey, searchPexelsPhoto } from "@/lib/ai/pexels";
+import {
+  findUniquePhoto,
+  isCoverConflict,
+  usedCoverKeys,
+  type PexelsPick,
+} from "@/lib/ai/pexels";
 import {
   researchTitle,
   researchTopic,
+  withGenerationDeadline,
   writeArticleFromBrief,
   type GeneratedArticle,
   type NavbarTopic,
@@ -44,21 +51,8 @@ export async function uniqueSlug(
   return `${slug}-${Date.now()}`;
 }
 
-export async function usedCoverKeys(
-  supabase: CmsClient,
-): Promise<Set<string>> {
-  const { data } = await supabase
-    .from("articles")
-    .select("cover_image_url")
-    .not("cover_image_url", "is", null);
-
-  const keys = new Set<string>();
-  for (const row of data ?? []) {
-    const key = pexelsPhotoKey(row.cover_image_url);
-    if (key) keys.add(key);
-  }
-  return keys;
-}
+/** A concurrent run can take the chosen photo before this insert lands. */
+const COVER_ATTEMPTS = 3;
 
 export async function persistGeneratedArticle(
   supabase: CmsClient,
@@ -67,60 +61,81 @@ export async function persistGeneratedArticle(
     topic: NavbarTopic;
     status?: ArticleStatus;
     source?: ArticleSource;
-    excludeKeys?: Set<string>;
   },
 ): Promise<{ id: string; slug: string; title: string }> {
   const generated = normalizeDashesDeep(clampGeneratedSeoFields(args.generated));
   const status = args.status ?? "published";
-  const excludeKeys = args.excludeKeys ?? (await usedCoverKeys(supabase));
   const slug = await uniqueSlug(
     supabase,
     generated.slug || generated.title,
   );
-  let image = null;
-  try {
-    image = await searchPexelsPhoto(generated.image_search_query, {
+  const coverQueries = [
+    generated.image_search_query,
+    `${args.topic.name} enterprise IT`,
+    `data center ${args.topic.slug}`,
+    "modern enterprise technology office",
+  ];
+
+  const insertArticle = (image: PexelsPick | null) =>
+    supabase
+      .from("articles")
+      .insert({
+        slug,
+        title: generated.title,
+        dek: generated.dek,
+        body_json: {
+          ...generated.body,
+          seo: {
+            focus_keyword: generated.focus_keyword,
+            og_title: generated.og_title,
+            keywords: generated.seo_keywords,
+            aeo_answer: generated.aeo_answer,
+            geo_summary: generated.geo_summary,
+          },
+        },
+        topic_id: args.topic.id,
+        status,
+        cover_image_url: image?.url ?? null,
+        cover_image_alt: image?.alt ?? generated.title,
+        cover_image_credit: image?.photographer ?? null,
+        cover_image_credit_url: image?.photographerUrl ?? null,
+        meta_title: generated.meta_title,
+        meta_description: generated.meta_description,
+        read_time_minutes: generated.read_time_minutes,
+        author_name: "The ITmatics News Desk",
+        source: args.source ?? "ai",
+        published_at: status === "published" ? new Date().toISOString() : null,
+      })
+      .select("id, slug, title")
+      .single();
+
+  const rejectedKeys = new Set<string>();
+  let result: Awaited<ReturnType<typeof insertArticle>> | undefined;
+
+  for (let attempt = 0; attempt < COVER_ATTEMPTS; attempt++) {
+    // Read just before choosing: generation takes minutes, and a list from the
+    // start of the run could miss a photo another run has since used.
+    const excludeKeys = await usedCoverKeys(supabase);
+    for (const key of rejectedKeys) excludeKeys.add(key);
+
+    const { image, lastError } = await findUniquePhoto(coverQueries, {
       excludeKeys,
       pageSalt: slug,
     });
-  } catch (err) {
-    console.error(
-      "Pexels cover fetch failed; saving article without cover:",
-      err instanceof Error ? err.message : err,
-    );
+    if (!image) {
+      console.error(
+        "No unique Pexels cover found; saving article without cover:",
+        lastError instanceof Error ? lastError.message : lastError,
+      );
+    }
+
+    result = await insertArticle(image);
+    if (!image || !result.error || !isCoverConflict(result.error)) break;
+
+    rejectedKeys.add(String(image.photoId));
   }
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("articles")
-    .insert({
-      slug,
-      title: generated.title,
-      dek: generated.dek,
-      body_json: {
-        ...generated.body,
-        seo: {
-          focus_keyword: generated.focus_keyword,
-          og_title: generated.og_title,
-          keywords: generated.seo_keywords,
-          aeo_answer: generated.aeo_answer,
-          geo_summary: generated.geo_summary,
-        },
-      },
-      topic_id: args.topic.id,
-      status,
-      cover_image_url: image?.url ?? null,
-      cover_image_alt: image?.alt ?? generated.title,
-      cover_image_credit: image?.photographer ?? null,
-      cover_image_credit_url: image?.photographerUrl ?? null,
-      meta_title: generated.meta_title,
-      meta_description: generated.meta_description,
-      read_time_minutes: generated.read_time_minutes,
-      author_name: "The ITmatics News Desk",
-      source: args.source ?? "ai",
-      published_at: status === "published" ? new Date().toISOString() : null,
-    })
-    .select("id, slug, title")
-    .single();
+  const { data: inserted, error: insertError } = result!;
 
   if (insertError || !inserted) {
     throw new Error(insertError?.message ?? "Article insert returned no row");
@@ -133,7 +148,9 @@ export async function persistGeneratedArticle(
   revalidatePath(`/article/${inserted.slug}`);
   revalidateSitemap();
   if (status === "published") {
-    await notifySubscribersOfArticle(inserted.id);
+    // After the response, so slow email can't turn a saved article into a
+    // timed-out run that gets logged as failed.
+    after(() => notifySubscribersOfArticle(inserted.id));
   }
 
   return inserted;
@@ -175,24 +192,28 @@ export async function generateAndSaveFromTitle(
   }
 
   const recentTitles = (recentArticles ?? []).map((a) => a.title);
-  const researchBrief = await researchTitle(
-    title,
-    recentTitles,
-    topic,
-    topics,
-  );
-  const generated = await writeArticleFromBrief(
-    researchBrief,
-    topics.map((t) => t.slug),
-    topic.slug,
-    { forcedTitle: title },
-  );
+  const saved = await withGenerationDeadline(async (signal) => {
+    const researchBrief = await researchTitle(
+      title,
+      recentTitles,
+      topic,
+      topics,
+      signal,
+    );
+    const generated = await writeArticleFromBrief(
+      researchBrief,
+      topics.map((t) => t.slug),
+      topic.slug,
+      { forcedTitle: title, signal },
+    );
+    signal.throwIfAborted();
 
-  const saved = await persistGeneratedArticle(supabase, {
-    generated,
-    topic,
-    status: input.status,
-    source: "ai",
+    return persistGeneratedArticle(supabase, {
+      generated,
+      topic,
+      status: input.status,
+      source: "ai",
+    });
   });
 
   return { ...saved, topic: topic.slug };
@@ -221,29 +242,34 @@ export async function generateAndSaveTrending(
     throw new Error("Unknown topic");
   }
 
-  const [{ data: recentArticles }, excludeKeys] = await Promise.all([
-    supabase
-      .from("articles")
-      .select("title")
-      .order("created_at", { ascending: false })
-      .limit(50),
-    usedCoverKeys(supabase),
-  ]);
+  const { data: recentArticles } = await supabase
+    .from("articles")
+    .select("title")
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   const recentTitles = (recentArticles ?? []).map((a) => a.title);
-  const researchBrief = await researchTopic(recentTitles, topic, topics);
-  const generated = await writeArticleFromBrief(
-    researchBrief,
-    topics.map((t) => t.slug),
-    topic.slug,
-  );
+  const saved = await withGenerationDeadline(async (signal) => {
+    const researchBrief = await researchTopic(
+      recentTitles,
+      topic,
+      topics,
+      signal,
+    );
+    const generated = await writeArticleFromBrief(
+      researchBrief,
+      topics.map((t) => t.slug),
+      topic.slug,
+      { signal },
+    );
+    signal.throwIfAborted();
 
-  const saved = await persistGeneratedArticle(supabase, {
-    generated,
-    topic,
-    status: input.status,
-    source: "ai",
-    excludeKeys,
+    return persistGeneratedArticle(supabase, {
+      generated,
+      topic,
+      status: input.status,
+      source: "ai",
+    });
   });
 
   return { ...saved, topic: topic.slug };

@@ -35,6 +35,30 @@ const client = new Anthropic({
   timeout: 10 * 60 * 1000,
 });
 
+/** Leaves time inside the routes' 300s maxDuration to save and log the result. */
+const GENERATION_DEADLINE_MS = 270 * 1000;
+
+/**
+ * Cancels in-flight model calls at the deadline, so a slow run fails with a
+ * loggable error instead of being killed silently by the platform, and can't
+ * publish an article after it has already been reported as failed.
+ */
+export async function withGenerationDeadline<T>(
+  work: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const signal = AbortSignal.timeout(GENERATION_DEADLINE_MS);
+  try {
+    return await work(signal);
+  } catch (err) {
+    if (signal.aborted) {
+      throw new Error(
+        `Generation exceeded ${GENERATION_DEADLINE_MS / 1000}s and was stopped`,
+      );
+    }
+    throw err;
+  }
+}
+
 const ArticleSchema = z.object({
   slug: z
     .string()
@@ -191,6 +215,7 @@ export async function researchTopic(
   recentTitles: string[],
   topic: NavbarTopic,
   allNavbarTopics: NavbarTopic[],
+  signal?: AbortSignal,
 ): Promise<string> {
   const config = getTopicConfig(topic.slug);
   const chips = config?.chips?.length
@@ -258,12 +283,15 @@ Keep the brief under 550 words.`,
   let finalText = "";
 
   for (let i = 0; i < 4; i++) {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      tools: [RESEARCH_SEARCH_TOOL],
-      messages,
-    });
+    const response = await client.messages.create(
+      {
+        model: MODEL,
+        max_tokens: 4096,
+        tools: [RESEARCH_SEARCH_TOOL],
+        messages,
+      },
+      { signal },
+    );
 
     if (response.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: response.content });
@@ -294,6 +322,7 @@ export async function researchTitle(
   recentTitles: string[],
   topic: NavbarTopic,
   allNavbarTopics: NavbarTopic[],
+  signal?: AbortSignal,
 ): Promise<string> {
   const avoidList =
     recentTitles.length > 0
@@ -353,12 +382,15 @@ Keep the brief under 550 words.`,
   let finalText = "";
 
   for (let i = 0; i < 4; i++) {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      tools: [RESEARCH_SEARCH_TOOL],
-      messages,
-    });
+    const response = await client.messages.create(
+      {
+        model: MODEL,
+        max_tokens: 4096,
+        tools: [RESEARCH_SEARCH_TOOL],
+        messages,
+      },
+      { signal },
+    );
 
     if (response.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: response.content });
@@ -389,7 +421,7 @@ export async function writeArticleFromBrief(
   researchBrief: string,
   topicSlugs: string[],
   forcedTopicSlug: string,
-  options?: { forcedTitle?: string },
+  options?: { forcedTitle?: string; signal?: AbortSignal },
 ): Promise<GeneratedArticle> {
   const brief = normalizeDashesDeep(researchBrief);
   const forcedTitle = options?.forcedTitle
@@ -400,14 +432,16 @@ export async function writeArticleFromBrief(
 Build slug, meta_title, og_title, focus_keyword, and the body around it.`
     : "1. title is the on-page H1 - unique, specific, focus keyword near the front.";
 
-  const response = await client.messages.parse({
-    model: MODEL,
-    max_tokens: 8000,
-    output_config: { format: zodOutputFormat(ArticleSchema) },
-    messages: [
-      {
-        role: "user",
-        content: `Using the research brief below, write a full article for ITmatics News (publication for CIOs, CISOs, and enterprise IT leaders). Tone: clear, editorial, non-hype - like CIO.com, The Register, or InfoWorld. Concrete and specific.
+  const response = await client.messages.parse(
+    {
+      model: MODEL,
+      // Cut-off JSON can't be parsed, so the cap must sit well above article length.
+      max_tokens: 16000,
+      output_config: { format: zodOutputFormat(ArticleSchema) },
+      messages: [
+        {
+          role: "user",
+          content: `Using the research brief below, write a full article for ITmatics News (publication for CIOs, CISOs, and enterprise IT leaders). Tone: clear, editorial, non-hype - like CIO.com, The Register, or InfoWorld. Concrete and specific.
 
 ${HOUSE_STYLE} Applies to title, dek, body, quotes, takeaways, meta fields.
 
@@ -435,9 +469,11 @@ Research brief:
 """
 ${brief}
 """`,
-      },
-    ],
-  });
+        },
+      ],
+    },
+    { signal: options?.signal },
+  );
 
   if (!response.parsed_output) {
     throw new Error("Structured article output failed to parse");
