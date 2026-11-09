@@ -11,16 +11,36 @@ import { HR_NEWS_TOPIC_SLUGS } from "@/lib/topic-config";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-const DAILY_ARTICLE_COUNT = 2;
+/**
+ * One article takes 3-5 minutes, so a single invocation can only finish one
+ * within maxDuration. vercel.json fires this route more than once per scheduled
+ * date, and two Vercel projects share this database, so the target is enforced
+ * by counting what was already published in the window.
+ */
+const ARTICLES_PER_SCHEDULED_DATE = 2;
+const SCHEDULED_WINDOW_MS = 6 * 60 * 60 * 1000;
+
+/** Fail just before maxDuration so a slow run is logged instead of being killed silently. */
+const GENERATION_DEADLINE_MS = 285 * 1000;
 
 type NavbarTopic = { id: string; slug: string; name: string };
+
+function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Generation exceeded ${ms / 1000}s and was stopped`)),
+      ms,
+    );
+  });
+  return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
+}
 
 /** Prefer navbar topics that have fewer published articles (coverage balance). */
 function pickNavbarTopic(
   topics: NavbarTopic[],
   articleCounts: Map<string, number>,
   requestedSlug?: string,
-  skipIds?: Set<string>,
 ): NavbarTopic {
   if (requestedSlug) {
     const hit = topics.find((t) => t.slug === requestedSlug);
@@ -28,16 +48,14 @@ function pickNavbarTopic(
     return hit;
   }
 
-  const ranked = topics
-    .filter((t) => !skipIds?.has(t.id))
-    .sort((a, b) => {
-      const ca = articleCounts.get(a.id) ?? 0;
-      const cb = articleCounts.get(b.id) ?? 0;
-      if (ca !== cb) return ca - cb;
-      return a.name.localeCompare(b.name);
-    });
+  const ranked = [...topics].sort((a, b) => {
+    const ca = articleCounts.get(a.id) ?? 0;
+    const cb = articleCounts.get(b.id) ?? 0;
+    if (ca !== cb) return ca - cb;
+    return a.name.localeCompare(b.name);
+  });
 
-  return ranked[0] ?? topics[0];
+  return ranked[0];
 }
 
 /** Vercel Cron sends GET. Manual/admin triggers may POST. */
@@ -50,12 +68,32 @@ export async function POST(request: Request) {
 }
 
 async function runGenerateCron(request: Request) {
+  // These exits happen before the database is reachable or trusted, so the
+  // server log is the only place they can be recorded.
+  if (!process.env.CRON_SECRET?.trim()) {
+    console.error("generate-article cron: CRON_SECRET is not configured");
+    return NextResponse.json(
+      { error: "CRON_SECRET is not configured" },
+      { status: 500 },
+    );
+  }
+
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.warn(
+      `generate-article cron: rejected request (authorization header ${authHeader ? "did not match" : "missing"})`,
+    );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createAdminClient();
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("generate-article cron failed:", message);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
 
   let requestedTopicSlug: string | undefined;
   try {
@@ -73,102 +111,102 @@ async function runGenerateCron(request: Request) {
     );
   }
 
-  const runs = requestedTopicSlug ? 1 : DAILY_ARTICLE_COUNT;
-  const created: { slug: string; topic: string }[] = [];
-  const errors: string[] = [];
-  const usedTopicIds = new Set<string>();
-
-  await syncHrTopicsToDb(supabase);
-
-  const topics = (await getHrNavbarTopics(supabase)).filter((t) =>
-    HR_NEWS_TOPIC_SLUGS.has(t.slug),
-  );
-
-  if (topics.length === 0) {
-    return NextResponse.json(
-      { ok: false, error: "No topics found - run supabase/schema.sql seed first" },
-      { status: 500 },
-    );
-  }
-
-  for (let i = 0; i < runs; i++) {
-    let topicSearched: string | null = null;
-    try {
-      const [{ data: recentArticles }, { data: topicCounts }, excludeKeys] =
-        await Promise.all([
-          supabase
-            .from("articles")
-            .select("title")
-            .order("created_at", { ascending: false })
-            .limit(50),
-          supabase.from("articles").select("topic_id").eq("status", "published"),
-          usedCoverKeys(supabase),
-        ]);
-
-      const counts = new Map<string, number>();
-      for (const row of topicCounts ?? []) {
-        if (!row.topic_id) continue;
-        counts.set(row.topic_id, (counts.get(row.topic_id) ?? 0) + 1);
+  let topicSearched: string | null = null;
+  try {
+    // A manual topic_slug request is explicit, so only scheduled runs are capped.
+    if (!requestedTopicSlug) {
+      const { count, error } = await supabase
+        .from("articles")
+        .select("id", { count: "exact", head: true })
+        .eq("source", "ai")
+        .gte(
+          "created_at",
+          new Date(Date.now() - SCHEDULED_WINDOW_MS).toISOString(),
+        );
+      if (error) throw new Error(`Count recent articles: ${error.message}`);
+      if ((count ?? 0) >= ARTICLES_PER_SCHEDULED_DATE) {
+        return NextResponse.json({
+          ok: true,
+          count: 0,
+          articles: [],
+          skipped: "Target for this scheduled date already met",
+        });
       }
-
-      const recentTitles = (recentArticles ?? []).map((a) => a.title);
-      const selectedTopic = pickNavbarTopic(
-        topics,
-        counts,
-        requestedTopicSlug,
-        usedTopicIds,
-      );
-      usedTopicIds.add(selectedTopic.id);
-      topicSearched = `${selectedTopic.name}: researching trending coverage`;
-
-      const researchBrief = await researchTopic(
-        recentTitles,
-        selectedTopic,
-        topics,
-      );
-      const generated = await writeArticleFromBrief(
-        researchBrief,
-        topics.map((t) => t.slug),
-        selectedTopic.slug,
-      );
-      topicSearched = `${selectedTopic.name}: ${generated.title}`;
-
-      const inserted = await persistGeneratedArticle(supabase, {
-        generated,
-        topic: selectedTopic,
-        excludeKeys,
-      });
-
-      await supabase.from("generation_log").insert({
-        topic_searched: topicSearched,
-        status: "success",
-        article_id: inserted.id,
-      });
-
-      created.push({ slug: inserted.slug, topic: selectedTopic.slug });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await supabase.from("generation_log").insert({
-        topic_searched: topicSearched,
-        status: "failed",
-        error_message: message,
-      });
-      console.error("generate-article cron failed:", message);
-      errors.push(message);
     }
-  }
 
-  if (created.length === 0) {
-    return NextResponse.json(
-      { ok: false, error: errors[0] ?? "Generation failed" },
-      { status: 500 },
+    await syncHrTopicsToDb(supabase);
+
+    const topics = (await getHrNavbarTopics(supabase)).filter((t) =>
+      HR_NEWS_TOPIC_SLUGS.has(t.slug),
     );
-  }
 
-  return NextResponse.json({
-    ok: errors.length === 0,
-    count: created.length,
-    articles: created,
-    errors: errors.length ? errors : undefined,
-  });
+    if (topics.length === 0) {
+      throw new Error("No topics found - run supabase/schema.sql seed first");
+    }
+
+    const [{ data: recentArticles }, { data: topicCounts }, excludeKeys] =
+      await Promise.all([
+        supabase
+          .from("articles")
+          .select("title")
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase.from("articles").select("topic_id").eq("status", "published"),
+        usedCoverKeys(supabase),
+      ]);
+
+    const counts = new Map<string, number>();
+    for (const row of topicCounts ?? []) {
+      if (!row.topic_id) continue;
+      counts.set(row.topic_id, (counts.get(row.topic_id) ?? 0) + 1);
+    }
+
+    const recentTitles = (recentArticles ?? []).map((a) => a.title);
+    const selectedTopic = pickNavbarTopic(topics, counts, requestedTopicSlug);
+    topicSearched = `${selectedTopic.name}: researching trending coverage`;
+
+    const inserted = await withDeadline(
+      (async () => {
+        const researchBrief = await researchTopic(
+          recentTitles,
+          selectedTopic,
+          topics,
+        );
+        const generated = await writeArticleFromBrief(
+          researchBrief,
+          topics.map((t) => t.slug),
+          selectedTopic.slug,
+        );
+        topicSearched = `${selectedTopic.name}: ${generated.title}`;
+
+        return persistGeneratedArticle(supabase, {
+          generated,
+          topic: selectedTopic,
+          excludeKeys,
+        });
+      })(),
+      GENERATION_DEADLINE_MS,
+    );
+
+    await supabase.from("generation_log").insert({
+      topic_searched: topicSearched,
+      status: "success",
+      article_id: inserted.id,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      count: 1,
+      articles: [{ slug: inserted.slug, topic: selectedTopic.slug }],
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await supabase.from("generation_log").insert({
+      topic_searched: topicSearched,
+      status: "failed",
+      error_message: message,
+    });
+    console.error("generate-article cron failed:", message);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
 }

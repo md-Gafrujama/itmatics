@@ -79,7 +79,7 @@ const ArticleSchema = z.object({
     .describe(
       "Generative-engine summary: 2-3 neutral sentences a model can cite. Include the key fact and who it affects (IT leaders). MAXIMUM 400 characters. Shorter is fine.",
     ),
-  read_time_minutes: z.number().int().min(2).max(12),
+  read_time_minutes: z.number().int().describe("Estimated read time, 2-12"),
   image_search_query: z
     .string()
     .describe(
@@ -106,17 +106,15 @@ const ArticleSchema = z.object({
         }),
       )
       .min(2)
-      .max(5),
+      .describe("2-5 sections"),
     pullQuote: z
       .string()
       .optional()
       .describe("One striking sentence pulled from or inspired by the body"),
     takeaways: z
       .array(z.string())
-      .min(3)
-      .max(5)
       .optional()
-      .describe("Short bullet takeaways for a 'Key takeaways' box"),
+      .describe("3-5 short bullet takeaways for a 'Key takeaways' box"),
     chart: z
       .object({
         title: z.string().describe("Short chart title"),
@@ -124,7 +122,7 @@ const ArticleSchema = z.object({
           .enum(["bar", "line"])
           .describe("'line' only for a time trend (3+ points); 'bar' otherwise"),
         unit: z.string().optional(),
-        labels: z.array(z.string()).min(3).max(8),
+        labels: z.array(z.string()).describe("3-8 labels"),
         series: z
           .array(
             z.object({
@@ -132,8 +130,7 @@ const ArticleSchema = z.object({
               values: z.array(z.number()),
             }),
           )
-          .min(1)
-          .max(2),
+          .describe("1-2 series, each with one value per label"),
         sourceNote: z.string().optional(),
       })
       .optional()
@@ -144,6 +141,33 @@ const ArticleSchema = z.object({
 });
 
 export type GeneratedArticle = z.infer<typeof ArticleSchema>;
+
+/**
+ * Array and number bounds are enforced here rather than in ArticleSchema: a
+ * bound in the schema rejects the whole paid generation over one optional
+ * field, and an out-of-range chart or takeaway list isn't worth losing an
+ * article for.
+ */
+function applyContentLimits(article: GeneratedArticle): GeneratedArticle {
+  const { chart, takeaways } = article.body;
+  const chartIsUsable =
+    chart &&
+    chart.labels.length >= 3 &&
+    chart.labels.length <= 8 &&
+    chart.series.length >= 1 &&
+    chart.series.length <= 2 &&
+    chart.series.every((s) => s.values.length === chart.labels.length);
+
+  return {
+    ...article,
+    read_time_minutes: Math.min(12, Math.max(2, article.read_time_minutes)),
+    body: {
+      ...article.body,
+      chart: chartIsUsable ? chart : undefined,
+      takeaways: takeaways?.slice(0, 5),
+    },
+  };
+}
 
 export type NavbarTopic = { id: string; slug: string; name: string };
 
@@ -407,18 +431,11 @@ ${brief}
     throw new Error("Structured article output failed to parse");
   }
 
-  const article = {
+  const article = applyContentLimits({
     ...response.parsed_output,
     topic_slug: forcedTopicSlug,
     ...(forcedTitle ? { title: forcedTitle } : {}),
-  };
+  });
 
-  const chart = article.body.chart;
-  const withoutBadChart =
-    chart &&
-    chart.series.some((s) => s.values.length !== chart.labels.length)
-      ? { ...article, body: { ...article.body, chart: undefined } }
-      : article;
-
-  return clampGeneratedSeoFields(normalizeDashesDeep(withoutBadChart));
+  return clampGeneratedSeoFields(normalizeDashesDeep(article));
 }
